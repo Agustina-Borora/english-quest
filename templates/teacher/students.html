@@ -1,0 +1,57 @@
+{% extends "teacher/layout.html" %}
+{% block title %}Alumnos · Profe{% endblock %}
+{% block main %}
+<div class="page-head">
+  <div><h1>🧒 Alumnos</h1><p>Cargá a tus alumnos: cada uno recibe un usuario y un PIN de 4 números para entrar.</p></div>
+  <div class="actions">
+    <a class="btn yellow" href="{{ url_for('teacher.student_cards', curso=course) }}">🖨️ Imprimir tarjetas de acceso</a>
+  </div>
+</div>
+
+<div class="grid2" style="grid-template-columns:minmax(260px,360px) 1fr;align-items:start">
+  <form class="card" method="post">
+    <h2>➕ Agregar alumnos</h2>
+    <label class="lbl">Curso / grado</label>
+    <input class="field" name="course" list="course-list" placeholder="ej: 5.º A" value="{{ course }}">
+    <datalist id="course-list">{% for c in courses %}<option value="{{ c }}">{% endfor %}</datalist>
+    <label class="lbl">Nombres (uno por renglón)</label>
+    <textarea class="field" name="names" placeholder="Sofía Gómez&#10;Tomás Ruiz&#10;Mía López" required></textarea>
+    <p class="muted" style="font-size:.9rem">Podés pegar la lista entera del curso.</p>
+    <button class="btn green" style="width:100%">Agregar ✔</button>
+  </form>
+
+  <div class="card">
+    <div class="page-head" style="margin-bottom:6px">
+      <h2 style="margin:0">Lista {{ '· ' + course if course }}</h2>
+      <form method="get" class="actions">
+        <select class="field" name="curso" onchange="this.form.submit()" style="width:auto;padding:8px 12px">
+          <option value="">Todos los cursos</option>
+          {% for c in courses %}<option value="{{ c }}" {{ 'selected' if c==course }}>{{ c }}</option>{% endfor %}
+        </select>
+      </form>
+    </div>
+    {% if students %}
+    <div class="table-wrap">
+      <table class="t">
+        <tr><th>Alumno</th><th>Curso</th><th>Usuario</th><th>PIN</th><th>Avance</th><th></th></tr>
+        {% for s in students %}
+        <tr class="clickable" onclick="location.href='{{ url_for('teacher.student_detail', sid=s.id) }}'">
+          <td><div class="namecell"><span class="av av-bubble" data-bust data-avatar='{{ s.avatar_data|tojson }}'></span>{{ s.name }}</div></td>
+          <td>{{ s.course or '—' }}</td>
+          <td><span class="code">{{ s.username }}</span></td>
+          <td><span class="code">{{ s.pin }}</span></td>
+          <td style="min-width:130px"><div class="bar"><div style="width:{{ s.percent }}%"></div></div><small class="muted">⭐ {{ s.stars }}/{{ s.total_activities }}</small></td>
+          <td onclick="event.stopPropagation()" style="white-space:nowrap">
+            <form method="post" action="{{ url_for('teacher.student_new_pin', sid=s.id) }}" style="display:inline"><button class="btn small light" title="Nuevo PIN">🔄 PIN</button></form>
+            <form method="post" action="{{ url_for('teacher.student_delete', sid=s.id) }}" style="display:inline" onsubmit="return confirm('¿Eliminar a este alumno y todo su progreso?')"><button class="btn small red" title="Eliminar">🗑</button></form>
+          </td>
+        </tr>
+        {% endfor %}
+      </table>
+    </div>
+    {% else %}
+    <div class="empty"><span class="big">📝</span>Todavía no hay alumnos{{ ' en ' + course if course }}. Agregalos con el formulario.</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

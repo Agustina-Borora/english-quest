@@ -1,0 +1,65 @@
+{% extends "teacher/layout.html" %}
+{% block title %}{{ s.name }} · Progreso{% endblock %}
+{% block main %}
+<div class="page-head">
+  <div style="display:flex;align-items:center;gap:16px">
+    <span class="av" style="width:90px" data-avatar='{{ s.avatar_data|tojson }}'></span>
+    <div><h1>{{ s.name }}</h1><p>{{ s.course or 'Sin curso' }} · usuario <span class="code">{{ s.username }}</span> · PIN <span class="code">{{ s.pin }}</span></p></div>
+  </div>
+  <div class="actions"><a class="btn light" href="{{ url_for('teacher.students') }}">⬅ Alumnos</a></div>
+</div>
+
+{% if summary %}
+<div class="stats">
+  <div class="stat"><span class="ic" style="background:#fff4c2">⭐</span><div><b>{{ summary.stars }}/{{ summary.total_activities }}</b><span>actividades aprobadas</span></div></div>
+  <div class="stat"><span class="ic" style="background:#e0f0ff">🗺️</span><div><b>{{ summary.lessons_complete }}/{{ summary.lessons_total }}</b><span>lecciones completas</span></div></div>
+  <div class="stat"><span class="ic" style="background:#d8f8e5">⚡</span><div><b>{{ summary.games_played }}</b><span>juegos rápidos ({{ summary.game_wins }} 🥇)</span></div></div>
+  <div class="stat"><span class="ic" style="background:#ffe3ec">🎯</span><div><b>{{ summary.game_accuracy if summary.game_accuracy is not none else '—' }}{{ '%' if summary.game_accuracy is not none }}</b><span>aciertos en juegos</span></div></div>
+  <div class="stat"><span class="ic" style="background:#fff1d6">🪙</span><div><b>{{ s.coins }}</b><span>monedas</span></div></div>
+</div>
+{% endif %}
+
+<div class="grid2" style="align-items:start">
+  <div class="card">
+    <h2>🗺️ Lecciones</h2>
+    {% for l in lessons %}
+    <div style="padding:10px 0;border-bottom:2px dashed #eee6ff">
+      <div style="display:flex;justify-content:space-between;gap:10px"><b>{{ l.title }}</b><span class="muted">{{ l.done }}/{{ l.acts|length }}</span></div>
+      <div style="margin-top:6px">
+        {% for a in l.acts %}
+          {% if a.p and a.p.passed %}<span class="chip green">{{ a.emoji }} {{ a.name }} ✔ {{ a.p.best_score }}/{{ a.p.total }}</span>
+          {% elif a.p %}<span class="chip yellow">{{ a.emoji }} {{ a.name }} · {{ a.p.best_score }}/{{ a.p.total }} ({{ a.p.attempts }} int.)</span>
+          {% else %}<span class="chip gray">{{ a.emoji }} {{ a.name }}</span>{% endif %}
+        {% endfor %}
+      </div>
+    </div>
+    {% else %}<div class="empty">No hay lecciones publicadas para este curso.</div>{% endfor %}
+  </div>
+
+  <div>
+    <div class="card" style="margin-bottom:18px">
+      <h2>⚡ Juegos rápidos</h2>
+      {% if results %}
+      <ul class="rowlist">
+        {% for r in results %}
+        <li><span style="font-size:1.5rem">{{ r.emoji }}</span>
+          <div class="grow"><b>{{ r.title }}</b><div class="sub">{{ r.ended_at.strftime('%d/%m %H:%M') }} · {{ r.correct }}/{{ r.total }} correctas</div></div>
+          <b>{{ ['🥇','🥈','🥉'][r.rank_pos-1] if r.rank_pos <= 3 else r.rank_pos ~ '.º' }}</b><span class="muted">de {{ r.players }}</span></li>
+        {% endfor %}
+      </ul>
+      {% else %}<div class="empty">Todavía no jugó ninguna partida.</div>{% endif %}
+    </div>
+    <form class="card" method="post" action="{{ url_for('teacher.student_edit', sid=s.id) }}">
+      <h2>✏️ Datos</h2>
+      <div class="form-row">
+        <div><label class="lbl">Nombre</label><input class="field" name="name" value="{{ s.name }}"></div>
+        <div><label class="lbl">Curso</label><input class="field" name="course" value="{{ s.course }}"></div>
+      </div>
+      <div class="actions" style="margin-top:14px">
+        <button class="btn green">Guardar</button>
+      </div>
+    </form>
+    <form method="post" action="{{ url_for('teacher.student_new_pin', sid=s.id) }}" style="margin-top:10px"><button class="btn light">🔄 Generar PIN nuevo</button></form>
+  </div>
+</div>
+{% endblock %}

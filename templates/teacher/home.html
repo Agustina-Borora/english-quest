@@ -1,0 +1,81 @@
+{% extends "teacher/layout.html" %}
+{% block title %}Inicio · Profe{% endblock %}
+{% block main %}
+<section class="hero">
+  <div class="scene-wrap" id="hero-scene"></div>
+  <h1>¡Hola, {{ session.name }}! 👋</h1>
+  <p>Desde acá armás tus temas y lecciones, preparás juegos rápidos para la clase y seguís el progreso de cada alumno.</p>
+  <div class="actions">
+    <a class="btn yellow" href="{{ url_for('teacher.games') }}">⚡ Lanzar un juego rápido</a>
+    <a class="btn white" href="{{ url_for('teacher.lesson_edit') }}">🗺️ Nueva lección</a>
+    <a class="btn ghost" href="{{ url_for('teacher.students') }}">🧒 Agregar alumnos</a>
+  </div>
+</section>
+
+<div class="stats">
+  <a class="stat" href="{{ url_for('teacher.students') }}"><span class="ic" style="background:#ffe3ec">🧒</span><div><b>{{ counts.students }}</b><span>alumnos</span></div></a>
+  <a class="stat" href="{{ url_for('teacher.lessons') }}"><span class="ic" style="background:#e0f0ff">🗺️</span><div><b>{{ counts.lessons }}</b><span>lecciones</span></div></a>
+  <a class="stat" href="{{ url_for('teacher.topics') }}"><span class="ic" style="background:#fff4c2">📚</span><div><b>{{ counts.topics }}</b><span>temas</span></div></a>
+  <a class="stat" href="{{ url_for('teacher.games') }}"><span class="ic" style="background:#d8f8e5">⚡</span><div><b>{{ counts.games }}</b><span>juegos rápidos</span></div></a>
+</div>
+
+<div class="grid2">
+  <div class="card">
+    <h2>🏆 Alumnos con más estrellas</h2>
+    {% if top %}
+    <ul class="rowlist">
+      {% for s in top %}
+      <li>
+        <span class="av av-bubble" data-bust data-avatar='{{ s.avatar_data|tojson }}'></span>
+        <div class="grow"><b>{{ s.name }}</b><div class="sub">{{ s.course or 'Sin curso' }} · 🪙 {{ s.coins }}</div></div>
+        <div style="width:120px"><div class="bar"><div style="width:{{ s.percent }}%"></div></div></div>
+        <b>⭐ {{ s.stars }}</b>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <div class="empty"><span class="big">🧒</span>Todavía no cargaste alumnos.<br><a href="{{ url_for('teacher.students') }}">Agregalos acá</a></div>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h2>⚡ Juegos listos para usar</h2>
+    <ul class="rowlist">
+      {% for g in games %}
+      <li>
+        <span style="font-size:1.8rem">{{ g.emoji }}</span>
+        <div class="grow"><b>{{ g.title }}</b><div class="sub">{{ g.n }} preguntas · {{ g.time_limit }} s</div></div>
+        <a class="btn small green" href="{{ url_for('teacher.game_live', game_id=g.id) }}">▶ Jugar</a>
+      </li>
+      {% endfor %}
+    </ul>
+    <p style="margin:10px 0 0"><a href="{{ url_for('teacher.games') }}">Ver todos los juegos →</a></p>
+  </div>
+
+  <div class="card">
+    <h2>🕑 Últimas partidas</h2>
+    {% if sessions %}
+    <ul class="rowlist">
+      {% for s in sessions %}
+      <li><span style="font-size:1.6rem">{{ s.emoji }}</span>
+        <div class="grow"><b>{{ s.title }}</b><div class="sub">{{ s.ended_at.strftime('%d/%m %H:%M') }} · {{ s.players }} jugadores</div></div>
+        <a class="btn small light" href="{{ url_for('teacher.game_history', game_id=s.game_id) }}">Ver</a></li>
+      {% endfor %}
+    </ul>
+    {% else %}<div class="empty"><span class="big">🎮</span>Todavía no jugaron ninguna partida.</div>{% endif %}
+  </div>
+
+  <div class="card">
+    <h2>👀 Conectados últimamente</h2>
+    {% if active %}
+    <ul class="rowlist">
+      {% for a in active %}
+      <li><span class="av av-bubble" data-bust data-avatar='{{ a.avatar_data|tojson }}'></span>
+        <div class="grow"><b>{{ a.name }}</b></div><span class="sub">{{ a.last_seen.strftime('%d/%m %H:%M') }}</span></li>
+      {% endfor %}
+    </ul>
+    {% else %}<div class="empty"><span class="big">💤</span>Ningún alumno entró todavía.</div>{% endif %}
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}<script>document.getElementById("hero-scene").innerHTML = sceneSVG("school");</script>{% endblock %}

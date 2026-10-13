@@ -1,0 +1,63 @@
+{% extends "teacher/layout.html" %}
+{% block title %}{{ topic.title }} · Tema{% endblock %}
+{% block main %}
+<div class="page-head">
+  <div><h1>{{ topic.emoji }} {{ topic.title }}</h1><p>{{ topic.title_es }}{% if used_in %} · Se usa en: {% for l in used_in %}<a href="{{ url_for('teacher.lesson_edit', lesson_id=l.id) }}">{{ l.title }}</a>{{ ', ' if not loop.last }}{% endfor %}{% endif %}</p></div>
+  <div class="actions"><a class="btn light" href="{{ url_for('teacher.topics') }}">⬅ Temas</a></div>
+</div>
+
+<div class="grid2" style="grid-template-columns:minmax(280px,380px) 1fr;align-items:start">
+  <div>
+    <form class="card" method="post" action="{{ url_for('teacher.word_add', topic_id=topic.id) }}" id="palabras" style="margin-bottom:18px">
+      <h2>➕ Agregar palabra</h2>
+      <label class="lbl">Palabra en inglés</label>
+      <input class="field" name="word" placeholder="ej: t-shirt" required autofocus>
+      <label class="lbl">Traducción</label>
+      <input class="field" name="translation" placeholder="ej: remera" required>
+      <label class="lbl">Dibujo (emoji)</label>
+      <input class="field" name="emoji" id="w-emoji" placeholder="👕" maxlength="8">
+      <div class="emoji-pick">{% for e in '👕👖👗🧢👟🧦🧤🍕🍔🍦🐶🐱🐸🚗🚌🚀⚽🎈🎁📱⌚⛄🌈🐠'|list %}<button type="button" onclick="document.getElementById('w-emoji').value='{{ e }}'">{{ e }}</button>{% endfor %}</div>
+      <p class="muted" style="font-size:.85rem;margin:4px 0 0">En Windows abrís todos los emojis con la tecla <b>Windows + .</b></p>
+      <label class="lbl">Oración de ejemplo (opcional)</label>
+      <input class="field" name="sentence" placeholder="ej: My t-shirt is red.">
+      <div style="margin-top:14px"><button class="btn green" style="width:100%">Agregar ✔</button></div>
+    </form>
+
+    <form class="card" method="post">
+      <h2>⚙️ Datos del tema</h2>
+      <label class="lbl">Nombre en inglés</label><input class="field" name="title" value="{{ topic.title }}">
+      <label class="lbl">Nombre en español</label><input class="field" name="title_es" value="{{ topic.title_es }}">
+      <label class="lbl">Emoji</label><input class="field" name="emoji" value="{{ topic.emoji }}" maxlength="8">
+      <label class="lbl">Color</label>
+      <div class="swatches">{% for c in colors %}<label><input type="radio" name="color" value="{{ c }}" {{ 'checked' if c==topic.color }}><span style="background:{{ c }}"></span></label>{% endfor %}</div>
+      <div class="actions" style="margin-top:14px"><button class="btn purple">Guardar</button></div>
+    </form>
+    <form method="post" action="{{ url_for('teacher.topic_delete', topic_id=topic.id) }}" onsubmit="return confirm('¿Eliminar este tema y todas sus palabras?')" style="margin-top:10px">
+      <button class="btn small red">🗑 Eliminar tema</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>Palabras ({{ words|length }})</h2>
+    {% if words %}
+    <div class="table-wrap">
+      <table class="t">
+        <tr><th></th><th>Inglés</th><th>Español</th><th>Oración</th><th></th></tr>
+        {% for w in words %}
+        <tr>
+          <td style="font-size:2rem;text-align:center;width:60px">{{ w.emoji }}</td>
+          <td><b style="font-size:1.1rem">{{ w.word }}</b> <button type="button" class="btn small light" onclick='speak({{ w.word|tojson }})'>🔊</button></td>
+          <td>{{ w.translation }}</td>
+          <td class="muted">{{ w.sentence }}</td>
+          <td><form method="post" action="{{ url_for('teacher.word_delete', topic_id=topic.id, word_id=w.id) }}"><button class="btn small red" title="Borrar">🗑</button></form></td>
+        </tr>
+        {% endfor %}
+      </table>
+    </div>
+    {% if words|length < 4 %}<p class="flash error">💡 Agregá al menos 4 palabras para que funcionen bien las actividades de opción múltiple.</p>{% endif %}
+    {% else %}
+    <div class="empty"><span class="big">✏️</span>Este tema todavía no tiene palabras.</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

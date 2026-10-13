@@ -1,0 +1,95 @@
+{% extends "teacher/layout.html" %}
+{% block title %}{{ 'Editar' if lesson else 'Nueva' }} lección · Profe{% endblock %}
+{% block main %}
+<div class="page-head">
+  <div><h1>{{ '✏️ Editar lección' if lesson else '✨ Nueva lección' }}</h1><p>Armá la clase: elegí dónde transcurre, qué palabras se aprenden y cómo se presentan.</p></div>
+  <a class="btn light" href="{{ url_for('teacher.lessons') }}">⬅ Lecciones</a>
+</div>
+
+<form method="post" id="lesson-form">
+  <div class="card" style="margin-bottom:18px">
+    <h2>1️⃣ Datos</h2>
+    <div class="form-row">
+      <div style="grid-column:span 2"><label class="lbl">Nombre de la lección</label><input class="field" name="title" value="{{ lesson.title if lesson else '' }}" placeholder="ej: Shopping for clothes" required></div>
+      <div><label class="lbl">Orden en el mapa</label><input class="field" type="number" min="0" name="position" value="{{ lesson.position if lesson else next_pos }}"></div>
+    </div>
+    <label class="lbl">Descripción corta (la ven los alumnos)</label>
+    <input class="field" name="description" value="{{ lesson.description if lesson else '' }}" placeholder="ej: Aprendemos la ropa y los colores">
+    <div class="form-row">
+      <div><label class="lbl">¿Para qué curso?</label>
+        <input class="field" name="course" list="cl" value="{{ lesson.course if lesson else '' }}" placeholder="Vacío = todos los cursos">
+        <datalist id="cl">{% for c in courses %}<option value="{{ c }}">{% endfor %}</datalist></div>
+      <div><label class="lbl">Visibilidad</label>
+        <label class="chip" style="font-size:1rem;padding:10px 14px;cursor:pointer"><input type="checkbox" name="published" value="1" {{ 'checked' if not lesson or lesson.published }}> 👁 Publicada (los alumnos la ven)</label></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:18px">
+    <h2>2️⃣ Escenario <small class="muted" style="font-weight:400">· dónde transcurre la lección</small></h2>
+    <div class="scene-pick">
+      {% for key, sc in SCENES.items() %}
+      <label><input type="radio" name="scene" value="{{ key }}" {{ 'checked' if (lesson and lesson.scene==key) or (not lesson and loop.first) }}>
+        <div class="box"><div class="pv" data-scene="{{ key }}"></div><div class="nm">{{ sc.es }} · <span class="muted">{{ sc.name }}</span></div></div></label>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:18px">
+    <h2>3️⃣ Temas <small class="muted" style="font-weight:400">· las palabras que se aprenden</small></h2>
+    <div class="topic-pick">
+      {% for t in topics %}
+      <label><input type="checkbox" name="topics" value="{{ t.id }}" {{ 'checked' if t.id in selected }}>
+        <span style="font-size:1.6rem">{{ t.emoji }}</span><span><b>{{ t.title }}</b><br><small class="muted">{{ t.n }} palabras</small></span></label>
+      {% endfor %}
+    </div>
+    <p class="muted" style="margin:10px 0 0">¿Falta un tema? <a href="{{ url_for('teacher.topics') }}">Crealo en Temas</a>.</p>
+  </div>
+
+  <div class="card" style="margin-bottom:18px">
+    <h2>4️⃣ Cómo se presenta <small class="muted" style="font-weight:400">· tildá las actividades y ordenalas con las flechas</small></h2>
+    <ul class="act-list" id="acts"></ul>
+    <input type="hidden" name="activities" id="activities">
+  </div>
+
+  <div class="sticky-bar">
+    <button class="btn green big">💾 Guardar lección</button>
+    {% if lesson %}<a class="btn blue" href="{{ url_for('teacher.lesson_preview', lesson_id=lesson.id) }}" target="_blank">👀 Ver como alumno</a>{% endif %}
+    <span class="muted" id="summary"></span>
+  </div>
+</form>
+{% endblock %}
+{% block scripts %}
+<script>
+$$(".pv[data-scene]").forEach(p => p.innerHTML = sceneSVG(p.dataset.scene));
+const ACTS = {{ activities|tojson }};
+const chosen = {{ acts|tojson }};
+let order = [...chosen, ...Object.keys(ACTS).filter(a => !chosen.includes(a))];
+let on = new Set(chosen);
+
+function render() {
+  let n = 0;
+  $("#acts").innerHTML = order.map((id, i) => {
+    const a = ACTS[id], active = on.has(id);
+    return `<li class="${active ? "on" : "off"}">
+      <span class="num">${active ? ++n : "–"}</span>
+      <input type="checkbox" data-id="${id}" ${active ? "checked" : ""}>
+      <span class="em">${a.emoji}</span>
+      <span class="tx"><b>${a.name}</b><small>${a.desc}</small></span>
+      <button type="button" class="mv" data-up="${i}" ${i === 0 ? "disabled" : ""}>▲</button>
+      <button type="button" class="mv" data-down="${i}" ${i === order.length - 1 ? "disabled" : ""}>▼</button>
+    </li>`;
+  }).join("");
+  $$("#acts input[type=checkbox]").forEach(c => c.onchange = () => { c.checked ? on.add(c.dataset.id) : on.delete(c.dataset.id); render(); });
+  $$("#acts [data-up]").forEach(b => b.onclick = () => { const i = +b.dataset.up; [order[i - 1], order[i]] = [order[i], order[i - 1]]; render(); });
+  $$("#acts [data-down]").forEach(b => b.onclick = () => { const i = +b.dataset.down; [order[i + 1], order[i]] = [order[i], order[i + 1]]; render(); });
+  const list = order.filter(a => on.has(a));
+  $("#activities").value = list.join(",");
+  $("#summary").textContent = list.length ? "Orden: " + list.map(a => ACTS[a].emoji + " " + ACTS[a].name).join(" → ") : "⚠️ Elegí al menos una actividad";
+}
+render();
+$("#lesson-form").onsubmit = e => {
+  if (!$$("input[name=topics]:checked").length) { e.preventDefault(); toast("Elegí al menos un tema 📚"); }
+  else if (!$("#activities").value) { e.preventDefault(); toast("Elegí al menos una actividad"); }
+};
+</script>
+{% endblock %}

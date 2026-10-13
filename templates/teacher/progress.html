@@ -1,0 +1,65 @@
+{% extends "teacher/layout.html" %}
+{% block title %}Progreso · Profe{% endblock %}
+{% block main %}
+<div class="page-head">
+  <div><h1>📈 Progreso de los alumnos</h1><p>Estrellas = actividades aprobadas. Tocá un alumno para ver el detalle.</p></div>
+  <form method="get" class="actions">
+    <select class="field" name="curso" onchange="this.form.submit()" style="width:auto">
+      <option value="">Todos los cursos</option>
+      {% for c in courses %}<option value="{{ c }}" {{ 'selected' if c==course }}>{{ c }}</option>{% endfor %}
+    </select>
+  </form>
+</div>
+
+{% if lessons %}
+<div class="card" style="margin-bottom:18px">
+  <h2>🗺️ ¿Cuántos terminaron cada lección?</h2>
+  <div class="lesson-bars">
+    {% for l in lessons %}
+    <div class="lb">
+      <span class="ic" data-building="{{ l.scene }}"></span>
+      <div><div class="nm">{{ l.title }} <span class="muted">({{ l.done }}/{{ l.eligible }})</span></div><div class="bar"><div style="width:{{ l.complete_pct }}%"></div></div></div>
+      <b>{{ l.complete_pct }}%</b>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<div class="card">
+  <h2>🧒 Alumno por alumno</h2>
+  {% if students %}
+  <div class="table-wrap">
+    <table class="t matrix">
+      <tr>
+        <th>Alumno</th><th>Avance</th>
+        {% for l in lessons %}<th title="{{ l.title }}" style="text-align:center">{{ loop.index }}. {{ l.title[:12] }}{{ '…' if l.title|length > 12 }}</th>{% endfor %}
+        <th>Juegos</th><th>Aciertos</th><th>🪙</th><th>Última vez</th>
+      </tr>
+      {% for s in students %}
+      <tr class="clickable" onclick="location.href='{{ url_for('teacher.student_detail', sid=s.id) }}'">
+        <td><div class="namecell"><span class="av av-bubble" data-bust data-avatar='{{ s.avatar_data|tojson }}'></span><span>{{ s.name }}<br><small class="muted">{{ s.course }}</small></span></div></td>
+        <td style="min-width:120px"><div class="bar"><div style="width:{{ s.percent }}%"></div></div><small>⭐ {{ s.stars }}/{{ s.total_activities }}</small></td>
+        {% for l in lessons %}
+          {% set n = cell.get((s.id, l.id), 0) %}
+          <td class="cell">
+            {% if l.course and l.course != s.course %}<span class="muted">·</span>
+            {% elif n >= l.n_acts %}<span class="dot-done">✅</span>
+            {% elif n > 0 %}{{ '⭐' * n }}<span class="muted">{{ '☆' * (l.n_acts - n) }}</span>
+            {% else %}<span class="muted">{{ '☆' * l.n_acts }}</span>{% endif %}
+          </td>
+        {% endfor %}
+        <td>{{ s.games_played }}{{ ' · ' ~ s.game_wins ~ '🥇' if s.game_wins }}</td>
+        <td>{{ (s.game_accuracy ~ '%') if s.game_accuracy is not none else '—' }}</td>
+        <td>{{ s.coins }}</td>
+        <td class="muted">{{ s.last_seen.strftime('%d/%m %H:%M') if s.last_seen else 'nunca' }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+  {% else %}
+  <div class="empty"><span class="big">🧒</span>No hay alumnos{{ ' en ' + course if course }}.</div>
+  {% endif %}
+</div>
+{% endblock %}
+{% block scripts %}<script>$$("[data-building]").forEach(b => b.innerHTML = buildingSVG(b.dataset.building));</script>{% endblock %}

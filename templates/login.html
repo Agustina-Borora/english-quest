@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Entrar · English Quest{% endblock %}
+{% block body_class %}kid{% endblock %}
+{% block content %}
+<div class="login-page">
+  <section class="login-art">
+    <div class="scene-wrap" id="login-scene"></div>
+    <h1 class="logo"><span class="spark">⭐</span> English<br>Quest</h1>
+    <p class="tagline">¡Aprendé inglés jugando! Explorá lugares, armá tu personaje y competí con tu clase.</p>
+    <div class="crew">
+      <span class="av" data-avatar='{"skin":0,"hair":1,"hairColor":3,"top":3,"topColor":0,"accessory":3,"eyes":2}'></span>
+      <span class="av" data-avatar='{"skin":3,"hair":2,"hairColor":0,"top":2,"topColor":1,"accessory":4,"pants":1}'></span>
+      <span class="av" data-avatar='{"skin":1,"hair":5,"hairColor":4,"top":1,"topColor":2,"accessory":2,"pants":3}'></span>
+      <span class="av" data-avatar='{"skin":5,"hair":4,"hairColor":0,"top":4,"topColor":4,"accessory":5,"eyes":1}'></span>
+    </div>
+  </section>
+
+  <section class="login-side">
+    <div class="card login-box">
+      {% if join_code %}
+      <div class="join-banner">🎮 Para entrar a la clase rápida <b>{{ join_code }}</b>, primero iniciá sesión.</div>
+      {% endif %}
+      <h2>¡Hola! 👋</h2>
+      <p class="hint">Entrá con tu usuario.</p>
+      <div class="who-tabs">
+        <div><b>👩‍🏫 Profe</b>usuario + contraseña</div>
+        <div><b>🧒 Alumno</b>usuario + PIN de 4 números</div>
+      </div>
+      {% with msgs = get_flashed_messages(with_categories=true) %}
+        {% for cat, m in msgs %}<div class="flash {{ cat }}">{{ m }}</div>{% endfor %}
+      {% endwith %}
+      <form method="post" autocomplete="off">
+        <input type="hidden" name="next" value="{{ next }}">
+        <label class="lbl" for="u">Usuario</label>
+        <input class="field" id="u" name="username" value="{{ username or '' }}" placeholder="ej: sofia27" autocapitalize="none" required autofocus>
+        <label class="lbl" for="p">Contraseña o PIN</label>
+        <input class="field" id="p" name="password" type="password" placeholder="••••" required>
+        <div style="margin-top:20px"><button class="btn big" style="width:100%">Entrar 🚀</button></div>
+      </form>
+      <p style="text-align:center;margin:18px 0 0;color:var(--ink-soft)">
+        ¿Sos profe y no tenés cuenta? <a href="{{ url_for('auth.register') }}">Crear cuenta de profe</a><br>
+        <small>Los alumnos reciben su usuario y PIN de su profe.</small>
+      </p>
+    </div>
+  </section>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>document.getElementById("login-scene").innerHTML = sceneSVG("park");</script>
+{% endblock %}

@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Clase rápida · English Quest{% endblock %}
+{% block body_class %}kid{% endblock %}
+{% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/kid.css') }}">{% endblock %}
+{% block content %}
+<div class="wrap phone">
+  <div class="topbar">
+    <a href="{{ url_for('student.home') }}">⬅ Inicio</a>
+    <span class="pill-stat" id="score">0 pts</span>
+  </div>
+
+  <section id="s-code" class="screen {{ 'hidden' if code }}">
+    <div class="center-msg">
+      <div class="big-av" data-avatar='{{ s.avatar_data|tojson }}'></div>
+      <h2>⚡ Clase rápida</h2>
+      <p>Escribí el código que muestra la profe:</p>
+      <form class="join-row" id="code-form" style="max-width:420px;margin:0 auto">
+        <input id="code-in" inputmode="numeric" maxlength="6" placeholder="000000" value="{{ code }}" autocomplete="off"
+               style="flex:1;font-size:1.8rem;letter-spacing:8px;text-align:center;font-weight:700;padding:10px;border-radius:18px;border:0;color:var(--purple)">
+        <button class="btn big yellow">Entrar</button>
+      </form>
+      <p id="err" class="flash error hidden" style="margin-top:14px"></p>
+    </div>
+  </section>
+
+  <section id="s-wait" class="screen {{ 'hidden' if not code }}">
+    <div class="center-msg">
+      <div class="big-av" data-avatar='{{ s.avatar_data|tojson }}'></div>
+      <h2 id="wait-title">Conectando… ⏳</h2>
+      <p id="wait-text">Mirá la pantalla de la profe.</p>
+      <p id="wait-count" style="opacity:.85"></p>
+    </div>
+  </section>
+
+  <section id="s-question" class="screen hidden">
+    <div class="q-head" style="margin-top:10px">
+      <span id="q-progress"></span>
+      <span class="timer-num" id="q-seconds" style="width:52px;height:52px;font-size:1.5rem">20</span>
+      <span></span>
+    </div>
+    <div class="timer" style="margin-top:10px"><div class="fill" id="q-fill"></div></div>
+    <div class="student-q"><span class="q-emoji" id="q-emoji"></span><h2 class="q-text" id="q-text"></h2></div>
+    <div class="answers student-answers" id="q-answers"></div>
+  </section>
+
+  <section id="s-feedback" class="screen hidden">
+    <div class="feedback" id="fb">
+      <div class="fb-av" data-avatar='{{ s.avatar_data|tojson }}'></div>
+      <h2 id="fb-title"></h2>
+      <div class="pts" id="fb-pts"></div>
+      <div class="extra" id="fb-extra"></div>
+      <div class="rank-box hidden" id="fb-rank"></div>
+    </div>
+  </section>
+
+  <section id="s-final" class="screen hidden">
+    <div class="center-msg">
+      <div class="big-av" data-avatar='{{ s.avatar_data|tojson }}'></div>
+      <span class="big-emoji" id="final-emoji">🏆</span>
+      <h2 id="final-title"></h2>
+      <p id="final-text"></p>
+      <a class="btn yellow big" href="{{ url_for('student.home') }}">🗺️ Volver a mi aventura</a>
+    </div>
+  </section>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>window.INITIAL_CODE = {{ code|tojson }};</script>
+<script src="{{ url_for('static', filename='js/socket.io.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/live_student.js') }}"></script>
+{% endblock %}

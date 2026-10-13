@@ -1,0 +1,6 @@
+flask>=3.0
+flask-socketio>=5.3
+simple-websocket>=1.0
+pymysql>=1.1
+segno>=1.6
+gunicorn>=22.0 ; sys_platform != "win32"

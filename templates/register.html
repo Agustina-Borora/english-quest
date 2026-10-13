@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Crear cuenta de profe · English Quest{% endblock %}
+{% block body_class %}kid{% endblock %}
+{% block content %}
+<div class="login-page">
+  <section class="login-art">
+    <div class="scene-wrap" id="login-scene"></div>
+    <h1 class="logo"><span class="spark">👩‍🏫</span> Cuenta<br>de profe</h1>
+    <p class="tagline">Con tu cuenta vas a poder crear temas, lecciones, juegos rápidos, cargar a tus alumnos y ver su progreso.</p>
+    <p class="tagline" style="font-size:1.05rem">✨ Te cargamos contenido de ejemplo para que puedas probar enseguida.</p>
+  </section>
+  <section class="login-side">
+    <div class="card login-box">
+      <h2>Crear cuenta</h2>
+      {% with msgs = get_flashed_messages(with_categories=true) %}
+        {% for cat, m in msgs %}<div class="flash {{ cat }}">{{ m }}</div>{% endfor %}
+      {% endwith %}
+      <form method="post" autocomplete="off">
+        <label class="lbl" for="n">Tu nombre</label>
+        <input class="field" id="n" name="name" value="{{ name or '' }}" placeholder="ej: Profe Laura" required>
+        <label class="lbl" for="u">Usuario (letras y números)</label>
+        <input class="field" id="u" name="username" value="{{ username or '' }}" placeholder="ej: laura" autocapitalize="none" required>
+        <label class="lbl" for="p">Contraseña (mínimo 6)</label>
+        <input class="field" id="p" name="password" type="password" minlength="6" required>
+        <div style="margin-top:20px"><button class="btn big green" style="width:100%">Crear mi cuenta ✨</button></div>
+      </form>
+      <p style="text-align:center;margin:16px 0 0"><a href="{{ url_for('auth.login') }}">⬅ Ya tengo cuenta</a></p>
+    </div>
+  </section>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>document.getElementById("login-scene").innerHTML = sceneSVG("school");</script>
+{% endblock %}

@@ -1,0 +1,29 @@
+{% extends "teacher/layout.html" %}
+{% block title %}Resultados · {{ game.title }}{% endblock %}
+{% block main %}
+<div class="page-head">
+  <div><h1>📊 {{ game.emoji }} {{ game.title }}</h1><p>Resultados de cada partida jugada.</p></div>
+  <div class="actions"><a class="btn green" href="{{ url_for('teacher.game_live', game_id=game.id) }}">▶ Jugar de nuevo</a><a class="btn light" href="{{ url_for('teacher.games') }}">⬅ Juegos</a></div>
+</div>
+{% for s in sessions %}
+<div class="card" style="margin-bottom:16px">
+  <h2>🗓️ {{ s.ended_at.strftime('%d/%m/%Y %H:%M') }} · {{ s.players }} jugadores <span class="chip gray">código {{ s.code }} 🔒</span></h2>
+  <div class="table-wrap">
+    <table class="t">
+      <tr><th>Puesto</th><th>Alumno</th><th>Curso</th><th>Correctas</th><th>Puntos</th></tr>
+      {% for r in s.results %}
+      <tr>
+        <td style="font-size:1.3rem">{{ ['🥇','🥈','🥉'][r.rank_pos-1] if r.rank_pos <= 3 else r.rank_pos ~ '.º' }}</td>
+        <td><div class="namecell"><span class="av av-bubble" data-bust data-avatar='{{ r.avatar_data|tojson }}'></span>{{ r.name }}</div></td>
+        <td>{{ r.course or '—' }}</td>
+        <td style="min-width:140px"><div class="bar warm"><div style="width:{{ (100 * r.correct / r.total)|round if r.total else 0 }}%"></div></div><small>{{ r.correct }}/{{ r.total }}</small></td>
+        <td><b>{{ r.score }}</b></td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="card empty"><span class="big">🎮</span>Este juego todavía no se jugó.</div>
+{% endfor %}
+{% endblock %}

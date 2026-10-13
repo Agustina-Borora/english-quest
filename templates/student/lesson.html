@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}{{ lesson.title }} · English Quest{% endblock %}
+{% block body_class %}kid{% endblock %}
+{% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/kid.css') }}">{% endblock %}
+{% block content %}
+<div class="wrap">
+  <div class="topbar">
+    {% if preview %}
+    <span class="pill-stat" style="background:#ffd23f;color:var(--ink)">👀 Vista previa de la profe (no guarda progreso)</span>
+    <a href="{{ url_for('teacher.lessons') }}">⬅ Volver a lecciones</a>
+    {% else %}
+    <a href="{{ url_for('student.home') }}">⬅ Mapa</a>
+    <span class="brand-small">⭐ English Quest</span>
+    <span class="pill-stat" id="coins">🪙 {{ coins }}</span>
+    {% endif %}
+  </div>
+
+  <div class="lesson-head">
+    <span class="ic" id="lesson-building"></span>
+    <div><h1>{{ lesson.title }}</h1><p>{{ lesson.description }}</p></div>
+  </div>
+  <div class="stepper" id="stepper"></div>
+  <div class="stage-box" id="stage"></div>
+  <div id="below"></div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+window.LESSON = {{ lesson|tojson }};
+window.ACTS = {{ activities|tojson }};
+window.PREVIEW = {{ 'true' if preview else 'false' }};
+window.ME = {{ avatar|tojson }};
+window.SAVE_URL = "{{ url_for('student.save_progress') if not preview else '' }}";
+window.MAP_URL = "{{ url_for('teacher.lessons') if preview else url_for('student.home') }}";
+</script>
+<script src="{{ url_for('static', filename='js/lesson.js') }}"></script>
+{% endblock %}

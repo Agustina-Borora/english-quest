@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/panel.css') }}">{% endblock %}
+{% block body_class %}panel{% endblock %}
+{% block content %}
+<div class="shell">
+  <nav class="side">
+    <div class="brand">⭐ English Quest</div>
+    <a class="nav {{ 'on' if page=='home' }}" href="{{ url_for('teacher.home') }}"><span class="i">🏠</span>Inicio</a>
+    <a class="nav {{ 'on' if page=='lessons' }}" href="{{ url_for('teacher.lessons') }}"><span class="i">🗺️</span>Lecciones</a>
+    <a class="nav {{ 'on' if page=='topics' }}" href="{{ url_for('teacher.topics') }}"><span class="i">📚</span>Temas</a>
+    <a class="nav {{ 'on' if page=='games' }}" href="{{ url_for('teacher.games') }}"><span class="i">⚡</span>Juegos rápidos</a>
+    <a class="nav {{ 'on' if page=='students' }}" href="{{ url_for('teacher.students') }}"><span class="i">🧒</span>Alumnos</a>
+    <a class="nav {{ 'on' if page=='progress' }}" href="{{ url_for('teacher.progress') }}"><span class="i">📈</span>Progreso</a>
+    <div class="spacer"></div>
+    <div class="who">👩‍🏫 {{ session.name }}<br><a href="{{ url_for('auth.logout') }}">Cerrar sesión</a></div>
+    <a class="nav" href="{{ url_for('auth.logout') }}" style="display:none" id="logout-mobile">🚪 Salir</a>
+  </nav>
+  <main class="main">
+    {% with msgs = get_flashed_messages(with_categories=true) %}
+      {% for cat, m in msgs %}<div class="flash {{ cat }}">{{ m }}</div>{% endfor %}
+    {% endwith %}
+    {% block main %}{% endblock %}
+  </main>
+</div>
+<style>@media (max-width:900px){ #logout-mobile{display:flex !important} }</style>
+{% endblock %}

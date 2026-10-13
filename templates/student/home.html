@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Mi aventura · English Quest{% endblock %}
+{% block body_class %}kid{% endblock %}
+{% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/kid.css') }}">{% endblock %}
+{% block content %}
+<div class="wrap">
+  <div class="topbar">
+    <span class="brand-small">⭐ English Quest</span>
+    <a href="{{ url_for('auth.logout') }}">Salir 🚪</a>
+  </div>
+
+  <div class="me-card">
+    <div class="me-av" data-avatar='{{ s.avatar_data|tojson }}'></div>
+    <div class="grow">
+      <h1>¡Hola, {{ s.name.split()[0] }}! 👋</h1>
+      <div class="pills">
+        <span class="pill-stat">⭐ {{ stars }} / {{ total }}</span>
+        <span class="pill-stat">🪙 {{ s.coins }}</span>
+        {% if s.course %}<span class="pill-stat">🏫 {{ s.course }}</span>{% endif %}
+      </div>
+    </div>
+    <a class="btn yellow" href="{{ url_for('student.look') }}">👕 Cambiar mi look</a>
+  </div>
+
+  <!-- Clase rápida -->
+  <section class="join-card" id="clase-rapida">
+    <h2>⚡ Clase rápida: ¿cómo me uno?</h2>
+    <p class="lead">Cuando la profe lance un juego, seguí estos pasos para competir con tus compañeros:</p>
+    <div class="steps">
+      <div class="step-box"><span class="n">1</span>
+        <span class="ill"><svg viewBox="0 0 64 64"><rect x="4" y="8" width="56" height="38" rx="6" fill="#2b1663"/><rect x="9" y="13" width="46" height="28" rx="3" fill="#fff"/>
+          <rect x="13" y="17" width="12" height="12" fill="#2b1663"/><rect x="15" y="19" width="8" height="8" fill="#fff"/><rect x="17" y="21" width="4" height="4" fill="#2b1663"/>
+          <text x="40" y="31" font-size="9" font-weight="700" fill="#5b2bd6" text-anchor="middle" font-family="Arial">123</text><rect x="28" y="46" width="8" height="8" fill="#2b1663"/><rect x="18" y="54" width="28" height="4" rx="2" fill="#2b1663"/></svg></span>
+        <span><b>Mirá la pantalla</b><small>La profe muestra un código de 6 números y un QR.</small></span></div>
+      <div class="step-box"><span class="n">2</span>
+        <span class="ill"><svg viewBox="0 0 64 64"><rect x="16" y="4" width="32" height="56" rx="7" fill="#2b1663"/><rect x="20" y="10" width="24" height="40" rx="3" fill="#ffd23f"/>
+          <text x="32" y="34" font-size="9" font-weight="700" fill="#2b1663" text-anchor="middle" font-family="Arial">456</text><circle cx="32" cy="55" r="2.5" fill="#fff"/></svg></span>
+        <span><b>Escribí el código</b><small>Acá abajo, o escaneá el QR con el celu.</small></span></div>
+      <div class="step-box"><span class="n">3</span>
+        <span class="ill"><svg viewBox="0 0 64 64"><path d="M18 8 h28 v14 a14 14 0 0 1 -28 0 Z" fill="#ffd23f" stroke="#f7a400" stroke-width="3"/>
+          <path d="M18 12 h-8 a8 8 0 0 0 8 12 M46 12 h8 a8 8 0 0 1 -8 12" fill="none" stroke="#f7a400" stroke-width="3"/><rect x="28" y="34" width="8" height="12" fill="#f7a400"/><rect x="20" y="46" width="24" height="8" rx="3" fill="#5b2bd6"/>
+          <path d="M32 12 l2.5 5 5.5 .8 -4 3.9 1 5.5 -5 -2.6 -5 2.6 1 -5.5 -4 -3.9 5.5 -.8 Z" fill="#fff"/></svg></span>
+        <span><b>¡A jugar!</b><small>Respondé rápido: ¡más rápido, más puntos!</small></span></div>
+    </div>
+    <form class="join-row" action="{{ url_for('student.play') }}" method="get" id="join-form">
+      <input name="code" id="join-code" inputmode="numeric" maxlength="6" placeholder="000000" autocomplete="off" aria-label="Código de la clase rápida">
+      <button class="btn big purple">Entrar 🚀</button>
+    </form>
+  </section>
+
+  <!-- Mapa de lecciones -->
+  <section class="map-card">
+    <div class="map-head">
+      <h2>🗺️ Mi aventura</h2>
+      <span>Tocá un lugar para ir caminando 👆</span>
+    </div>
+    {% if lessons %}
+    <div class="map" id="map"></div>
+    {% else %}
+    <div class="center-msg"><span class="big-emoji">🏗️</span><h2>¡Pronto!</h2><p>Tu profe todavía no publicó lecciones.</p></div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+window.LESSONS = {{ lessons|tojson }};
+window.ME = {{ s.avatar_data|tojson }};
+window.FIRST_NAME = {{ s.name.split()[0]|tojson }};
+window.LESSON_URL = "{{ url_for('student.lesson', lesson_id=0) }}".replace(/0$/, "");
+$("#join-code").addEventListener("input", e => e.target.value = e.target.value.replace(/\D/g, "").slice(0, 6));
+$("#join-form").onsubmit = e => { if ($("#join-code").value.length !== 6) { e.preventDefault(); toast("El código tiene 6 números 🔢"); } };
+</script>
+<script src="{{ url_for('static', filename='js/map.js') }}"></script>
+{% endblock %}

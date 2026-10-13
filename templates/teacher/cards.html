@@ -1,0 +1,23 @@
+{% extends "teacher/layout.html" %}
+{% block title %}Tarjetas de acceso{% endblock %}
+{% block main %}
+<div class="page-head no-print">
+  <div><h1>🖨️ Tarjetas de acceso {{ '· ' + course if course }}</h1><p>Imprimilas, recortalas y dale una a cada alumno.</p></div>
+  <div class="actions"><button class="btn" onclick="print()">🖨️ Imprimir</button><a class="btn light" href="{{ url_for('teacher.students') }}">⬅ Volver</a></div>
+</div>
+<div class="cards-print">
+  {% for s in students %}
+  <div class="access-card">
+    <span class="av" data-avatar='{{ s.avatar_data|tojson }}'></span>
+    <div>
+      <div class="nm">{{ s.name }}</div>
+      <div class="kv">👤 Usuario: <span class="code">{{ s.username }}</span></div>
+      <div class="kv">🔑 PIN: <span class="code">{{ s.pin }}</span></div>
+      <div class="kv muted" style="font-size:.8rem">Entrá en {{ url }}</div>
+    </div>
+  </div>
+  {% else %}
+  <div class="empty"><span class="big">🧒</span>No hay alumnos para imprimir.</div>
+  {% endfor %}
+</div>
+{% endblock %}

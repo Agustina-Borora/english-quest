@@ -1,0 +1,36 @@
+{% extends "teacher/layout.html" %}
+{% block title %}Lecciones · Profe{% endblock %}
+{% block main %}
+<div class="page-head">
+  <div><h1>🗺️ Lecciones</h1><p>Cada lección aparece como un lugar en el mapa de tus alumnos. Elegís el escenario, los temas y cómo se presentan (las actividades y su orden).</p></div>
+  <a class="btn" href="{{ url_for('teacher.lesson_edit') }}">➕ Nueva lección</a>
+</div>
+
+<div class="grid3">
+  {% for l in lessons %}
+  <div class="tile {{ 'off' if not l.published }}">
+    <div class="thumb" data-scene="{{ l.scene }}">
+      <span class="label">{{ loop.index }}. {{ SCENES[l.scene].es }}</span>
+      <span class="status">{% if l.published %}<span class="chip green">👁 Visible</span>{% else %}<span class="chip gray">🙈 Oculta</span>{% endif %}</span>
+    </div>
+    <div class="body">
+      <h3 style="margin:0 0 4px">{{ l.title }}</h3>
+      <p class="muted" style="margin:0 0 8px">{{ l.description }}</p>
+      <div>{% for t in l.topics %}<span class="chip">{{ t.emoji }} {{ t.title }}</span>{% endfor %}</div>
+      <div style="margin-top:6px">{% for a in l.acts %}<span class="chip yellow" title="{{ a.desc }}">{{ loop.index }}. {{ a.emoji }} {{ a.name }}</span>{% endfor %}</div>
+      <p class="muted" style="margin:8px 0 0;font-size:.9rem">{{ l.n_words }} palabras · {{ 'Para: ' + l.course if l.course else 'Para todos los cursos' }}</p>
+    </div>
+    <div class="foot">
+      <a class="btn small purple" href="{{ url_for('teacher.lesson_edit', lesson_id=l.id) }}">✏️ Editar</a>
+      <a class="btn small blue" href="{{ url_for('teacher.lesson_preview', lesson_id=l.id) }}" target="_blank">👀 Ver como alumno</a>
+      <form method="post" action="{{ url_for('teacher.lesson_toggle', lesson_id=l.id) }}"><button class="btn small light">{{ '🙈 Ocultar' if l.published else '👁 Publicar' }}</button></form>
+      <form method="post" action="{{ url_for('teacher.lesson_delete', lesson_id=l.id) }}" onsubmit="return confirm('¿Eliminar esta lección? Se borra también el progreso de los alumnos en ella.')"><button class="btn small red">🗑</button></form>
+    </div>
+  </div>
+  {% endfor %}
+  <a class="tile add" href="{{ url_for('teacher.lesson_edit') }}"><span class="big">➕</span>Nueva lección</a>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>$$(".thumb[data-scene]").forEach(t => t.insertAdjacentHTML("afterbegin", sceneSVG(t.dataset.scene)));</script>
+{% endblock %}

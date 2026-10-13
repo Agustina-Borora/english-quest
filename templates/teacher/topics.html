@@ -1,0 +1,43 @@
+{% extends "teacher/layout.html" %}
+{% block title %}Temas · Profe{% endblock %}
+{% block main %}
+<div class="page-head">
+  <div><h1>📚 Temas</h1><p>Un tema es un grupo de palabras (con dibujo, traducción y oración). Después los usás en las lecciones y para generar juegos.</p></div>
+  <button class="btn" onclick="document.getElementById('new-topic').classList.toggle('hidden')">➕ Nuevo tema</button>
+</div>
+
+<form id="new-topic" class="card hidden" method="post" style="margin-bottom:18px">
+  <h2>Nuevo tema</h2>
+  <div class="form-row">
+    <div><label class="lbl">Nombre en inglés</label><input class="field" name="title" placeholder="ej: Clothes" required></div>
+    <div><label class="lbl">Nombre en español</label><input class="field" name="title_es" placeholder="ej: La ropa"></div>
+    <div><label class="lbl">Emoji</label><input class="field" name="emoji" id="emoji-in" placeholder="👕" maxlength="8">
+      <div class="emoji-pick">{% for e in '👕🍕🐶🚗⚽🎵🍔🧸🎨🌎🎒🐠🦖🚀🎃🏥'|list %}<button type="button" onclick="document.getElementById('emoji-in').value='{{ e }}'">{{ e }}</button>{% endfor %}</div>
+    </div>
+  </div>
+  <label class="lbl">Color</label>
+  <div class="swatches">
+    {% for c in colors %}<label><input type="radio" name="color" value="{{ c }}" {{ 'checked' if loop.first }}><span style="background:{{ c }}"></span></label>{% endfor %}
+  </div>
+  <div style="margin-top:16px"><button class="btn green">Crear tema y agregar palabras →</button></div>
+</form>
+
+<div class="grid3">
+  {% for t in topics %}
+  <div class="tile">
+    <div class="top" style="background:{{ t.color }}">
+      <span class="em">{{ t.emoji }}</span>
+      <h3>{{ t.title }}</h3><small>{{ t.title_es }}</small>
+    </div>
+    <div class="body">
+      <div class="emojis">{{ t.emojis or '' }}</div>
+      <p class="muted" style="margin:6px 0 0">{{ t.n }} palabra{{ '' if t.n == 1 else 's' }}</p>
+    </div>
+    <div class="foot">
+      <a class="btn small purple" href="{{ url_for('teacher.topic_edit', topic_id=t.id) }}">✏️ Editar palabras</a>
+    </div>
+  </div>
+  {% endfor %}
+  <a class="tile add" onclick="document.getElementById('new-topic').classList.remove('hidden');scrollTo({top:0,behavior:'smooth'})"><span class="big">➕</span>Nuevo tema</a>
+</div>
+{% endblock %}

@@ -1,0 +1,108 @@
+{% extends "teacher/layout.html" %}
+{% block title %}Editar juego · Profe{% endblock %}
+{% block main %}
+<div class="page-head">
+  <div><h1>✏️ Editar juego rápido</h1><p>Escribí las preguntas y marcá la opción correcta. Al jugar, las opciones se mezclan solas.</p></div>
+  <a class="btn light" href="{{ url_for('teacher.games') }}">⬅ Juegos</a>
+</div>
+
+<div class="card" style="margin-bottom:18px">
+  <div class="form-row">
+    <div style="grid-column:span 2"><label class="lbl">Nombre del juego</label><input class="field" id="g-title" value="{{ game.title }}"></div>
+    <div><label class="lbl">Emoji</label><input class="field" id="g-emoji" value="{{ game.emoji }}" maxlength="8"></div>
+    <div><label class="lbl">Segundos por pregunta</label>
+      <select class="field" id="g-time">{% for t in [10,15,20,30,45,60] %}<option value="{{ t }}" {{ 'selected' if t==game.time_limit }}>{{ t }} segundos</option>{% endfor %}</select></div>
+  </div>
+</div>
+
+<div class="card" style="margin-bottom:18px;background:linear-gradient(120deg,#fff4c2,#ffe3ec)">
+  <h2>🪄 Generar preguntas desde un tema</h2>
+  <p class="muted" style="margin:0 0 10px">Se arman solas con las palabras del tema (traducir, qué significa, qué es el dibujo). Después las podés editar.</p>
+  <div class="actions">
+    <select class="field" id="gen-topic" style="width:auto">{% for t in topics %}<option value="{{ t.id }}">{{ t.emoji }} {{ t.title }} ({{ t.n }})</option>{% endfor %}</select>
+    <select class="field" id="gen-count" style="width:auto">{% for n in [3,5,8,10] %}<option value="{{ n }}" {{ 'selected' if n==5 }}>{{ n }} preguntas</option>{% endfor %}</select>
+    <button class="btn orange" id="btn-gen" type="button">🪄 Generar</button>
+  </div>
+</div>
+
+<div class="q-editor" id="questions"></div>
+<div style="margin-top:14px"><button class="btn purple" type="button" id="btn-add">➕ Agregar pregunta</button></div>
+
+<div class="sticky-bar">
+  <button class="btn green big" id="btn-save">💾 Guardar juego</button>
+  <a class="btn" href="{{ url_for('teacher.game_live', game_id=game.id) }}" id="btn-play">▶ Guardar y jugar</a>
+  <span class="muted" id="q-count"></span>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+let Q = {{ questions|tojson }};
+if (!Q.length) Q.push({ text: "", emoji: "", options: ["", "", "", ""], correct: 0 });
+
+function sync() {
+  $$(".q-item").forEach((el, i) => {
+    Q[i].text = $(".q-text", el).value;
+    Q[i].emoji = $(".q-emoji", el).value;
+    Q[i].options = $$(".q-opt input[type=text]", el).map(x => x.value);
+    const r = $(".q-opt input[type=radio]:checked", el);
+    Q[i].correct = r ? +r.value : 0;
+  });
+}
+function render() {
+  $("#questions").innerHTML = Q.map((q, i) => `
+    <div class="q-item">
+      <div class="q-top">
+        <input class="field q-emoji" value="${esc(q.emoji)}" placeholder="🙂" maxlength="8" style="text-align:center;font-size:1.4rem;padding:8px">
+        <input class="field q-text" value="${esc(q.text)}" placeholder="Pregunta ${i + 1}: ej. ¿Cómo se dice 'perro'?">
+        <div class="actions">
+          <button type="button" class="btn small light" data-up="${i}" ${i ? "" : "disabled"}>▲</button>
+          <button type="button" class="btn small light" data-down="${i}" ${i < Q.length - 1 ? "" : "disabled"}>▼</button>
+          <button type="button" class="btn small red" data-del="${i}">🗑</button>
+        </div>
+      </div>
+      <div class="q-opts">
+        ${[0, 1, 2, 3].map(k => `
+          <div class="q-opt c${k} ${q.correct === k ? "right" : ""}">
+            <span>${SHAPES[k]}</span>
+            <input type="text" value="${esc(q.options[k] || "")}" placeholder="Opción ${k + 1}${k > 1 ? " (opcional)" : ""}">
+            <label><input type="radio" name="c${i}" value="${k}" ${q.correct === k ? "checked" : ""}> Correcta</label>
+          </div>`).join("")}
+      </div>
+    </div>`).join("");
+  $$("[data-del]").forEach(b => b.onclick = () => { sync(); Q.splice(+b.dataset.del, 1); if (!Q.length) Q.push({ text: "", emoji: "", options: ["", "", "", ""], correct: 0 }); render(); });
+  $$("[data-up]").forEach(b => b.onclick = () => { sync(); const i = +b.dataset.up; [Q[i - 1], Q[i]] = [Q[i], Q[i - 1]]; render(); });
+  $$("[data-down]").forEach(b => b.onclick = () => { sync(); const i = +b.dataset.down; [Q[i + 1], Q[i]] = [Q[i], Q[i + 1]]; render(); });
+  $$(".q-opt input[type=radio]").forEach(r => r.onchange = () => { sync(); render(); });
+  $("#q-count").textContent = `${Q.length} pregunta${Q.length === 1 ? "" : "s"}`;
+}
+render();
+
+$("#btn-add").onclick = () => { sync(); Q.push({ text: "", emoji: "", options: ["", "", "", ""], correct: 0 }); render(); $$(".q-item").pop().scrollIntoView({ behavior: "smooth" }); };
+
+$("#btn-gen").onclick = async () => {
+  sync();
+  try {
+    const r = await postJSON("{{ url_for('teacher.game_generate', game_id=game.id) }}", { topic_id: +$("#gen-topic").value, count: +$("#gen-count").value });
+    Q = Q.filter(q => q.text.trim());
+    Q.push(...r.questions);
+    render();
+    toast(`🪄 Se agregaron ${r.questions.length} preguntas`);
+  } catch (e) { toast(e.message); }
+};
+
+async function save() {
+  sync();
+  const r = await postJSON("{{ url_for('teacher.game_edit', game_id=game.id) }}", {
+    title: $("#g-title").value, emoji: $("#g-emoji").value, time: +$("#g-time").value, questions: Q });
+  return r;
+}
+$("#btn-save").onclick = async () => {
+  try { const r = await save(); toast(`💾 Guardado: ${r.saved} preguntas`); } catch (e) { toast(e.message); }
+};
+$("#btn-play").onclick = async e => {
+  e.preventDefault();
+  const href = $("#btn-play").getAttribute("href");
+  try { await save(); location.href = href; } catch (err) { toast(err.message); }
+};
+</script>
+{% endblock %}
