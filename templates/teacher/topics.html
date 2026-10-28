@@ -37,7 +37,8 @@
       <a class="btn small purple" href="{{ url_for('teacher.topic_edit', topic_id=t.id) }}">✏️ Editar palabras</a>
     </div>
   </div>
+  {% else %}
+  <div class="empty" style="grid-column:1/-1"><span class="big">📚</span>Todavía no hay temas. Tocá <b>➕ Nuevo tema</b> arriba.</div>
   {% endfor %}
-  <a class="tile add" onclick="document.getElementById('new-topic').classList.remove('hidden');scrollTo({top:0,behavior:'smooth'})"><span class="big">➕</span>Nuevo tema</a>
 </div>
 {% endblock %}

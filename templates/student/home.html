@@ -6,7 +6,7 @@
 <div class="wrap">
   <div class="topbar">
     <span class="brand-small">⭐ English Quest</span>
-    <a href="{{ url_for('auth.logout') }}">Salir 🚪</a>
+    <span style="display:flex;gap:16px"><a href="#" data-tour-start id="tour-help">❓ Tutorial</a><a href="{{ url_for('auth.logout') }}">Salir 🚪</a></span>
   </div>
 
   <div class="me-card">
@@ -64,6 +64,20 @@
 {% endblock %}
 {% block scripts %}
 <script>
+window.TOUR = { key: "alumno", steps: [
+  { title: "¡Hola! 👋",
+    text: "Te muestro rapidito cómo funciona English Quest. Tocá <b>Siguiente</b>." },
+  { el: ".me-card", title: "😀 Este sos vos",
+    text: "Las <b>⭐ estrellas</b> las ganás aprobando actividades de las lecciones. Las <b>🪙 monedas</b> las ganás en las actividades y en los juegos rápidos." },
+  { el: ".me-card .btn", title: "👕 Tu look",
+    text: "Cambiale el pelo, la ropa y los accesorios a tu personita. ¡Hacela a tu estilo!" },
+  { el: ".map-card", title: "🗺️ Tu aventura",
+    text: "Cada lugar del mapa es una lección. Tocalo y tu personita camina hasta ahí. Adentro hay actividades: explorar, tarjetas, escuchar, escribir y un desafío final." },
+  { el: "#clase-rapida", title: "⚡ Clase rápida",
+    text: "Cuando la profe lance un juego, escribí acá el <b>código de 6 números</b> que aparece en su pantalla. ¡Respondé bien y rápido para sumar más puntos!" },
+  { el: "#tour-help", title: "❓ Tutorial",
+    text: "Si te olvidás de algo, tocá acá y lo vemos de nuevo. ¡A jugar! 🚀" }
+]};
 window.LESSONS = {{ lessons|tojson }};
 window.ME = {{ s.avatar_data|tojson }};
 window.FIRST_NAME = {{ s.name.split()[0]|tojson }};

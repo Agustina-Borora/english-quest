@@ -114,3 +114,21 @@ textarea.field { resize: vertical; min-height: 110px; }
 .who-tabs b { display: block; color: var(--ink); font-size: 1.05rem; }
 .pin-input { letter-spacing: 8px; text-align: center; font-size: 1.4rem; }
 .join-banner { background: #fff4c2; border-radius: 16px; padding: 12px 14px; font-weight: 600; margin-bottom: 12px; }
+
+/* ---------- mini tutorial guiado (tour.js) ---------- */
+.tour-shade { position: fixed; inset: 0; z-index: 9000; }
+.tour-shade.dark { background: rgba(20, 5, 60, .62); }
+.tour-hole { position: fixed; z-index: 9001; border-radius: 18px; pointer-events: none; display: none;
+  box-shadow: 0 0 0 4px var(--yellow), 0 0 0 9999px rgba(20, 5, 60, .62); transition: all .25s ease; }
+.tour-box { position: fixed; z-index: 9002; left: 50%; transform: translateX(-50%); width: min(420px, calc(100% - 32px));
+  background: #fff; color: var(--ink); border-radius: 22px; padding: 18px 20px 16px; box-shadow: var(--shadow);
+  animation: tour-pop .3s cubic-bezier(.3, 1.6, .6, 1); }
+.tour-box.at-bottom { bottom: 20px; }
+.tour-box.at-top { top: 20px; }
+.tour-box.at-center { top: 50%; transform: translate(-50%, -50%); }
+.tour-box h3 { margin: 2px 0 6px; font-size: 1.3rem; }
+.tour-box p { margin: 0 0 14px; line-height: 1.45; color: var(--ink-soft); }
+.tour-count { font-size: .8rem; font-weight: 600; color: var(--purple); }
+.tour-btns { display: flex; gap: 8px; align-items: center; justify-content: flex-end; }
+.tour-skip { margin-right: auto; background: none; border: 0; color: var(--ink-soft); font: inherit; cursor: pointer; text-decoration: underline; }
+@keyframes tour-pop { from { opacity: 0; } to { opacity: 1; } }

@@ -27,9 +27,9 @@
       <div style="display:flex;justify-content:space-between;gap:10px"><b>{{ l.title }}</b><span class="muted">{{ l.done }}/{{ l.acts|length }}</span></div>
       <div style="margin-top:6px">
         {% for a in l.acts %}
-          {% if a.p and a.p.passed %}<span class="chip green">{{ a.emoji }} {{ a.name }} ✔ {{ a.p.best_score }}/{{ a.p.total }}</span>
-          {% elif a.p %}<span class="chip yellow">{{ a.emoji }} {{ a.name }} · {{ a.p.best_score }}/{{ a.p.total }} ({{ a.p.attempts }} int.)</span>
-          {% else %}<span class="chip gray">{{ a.emoji }} {{ a.name }}</span>{% endif %}
+          {% if a.p and a.p.passed %}<span class="chip green">{{ a.topic_emoji }} {{ a.emoji }} {{ a.name }} ✔ {{ a.p.best_score }}/{{ a.p.total }}</span>
+          {% elif a.p %}<span class="chip yellow">{{ a.topic_emoji }} {{ a.emoji }} {{ a.name }} · {{ a.p.best_score }}/{{ a.p.total }} ({{ a.p.attempts }} int.)</span>
+          {% else %}<span class="chip gray">{{ a.topic_emoji }} {{ a.emoji }} {{ a.name }}</span>{% endif %}
         {% endfor %}
       </div>
     </div>

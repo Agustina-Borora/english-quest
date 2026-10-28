@@ -5,12 +5,14 @@
 <div class="shell">
   <nav class="side">
     <div class="brand">⭐ English Quest</div>
-    <a class="nav {{ 'on' if page=='home' }}" href="{{ url_for('teacher.home') }}"><span class="i">🏠</span>Inicio</a>
-    <a class="nav {{ 'on' if page=='lessons' }}" href="{{ url_for('teacher.lessons') }}"><span class="i">🗺️</span>Lecciones</a>
-    <a class="nav {{ 'on' if page=='topics' }}" href="{{ url_for('teacher.topics') }}"><span class="i">📚</span>Temas</a>
-    <a class="nav {{ 'on' if page=='games' }}" href="{{ url_for('teacher.games') }}"><span class="i">⚡</span>Juegos rápidos</a>
-    <a class="nav {{ 'on' if page=='students' }}" href="{{ url_for('teacher.students') }}"><span class="i">🧒</span>Alumnos</a>
-    <a class="nav {{ 'on' if page=='progress' }}" href="{{ url_for('teacher.progress') }}"><span class="i">📈</span>Progreso</a>
+    <a class="nav {{ 'on' if page=='home' }}" data-tour="home" href="{{ url_for('teacher.home') }}"><span class="i">🏠</span>Inicio</a>
+    <a class="nav {{ 'on' if page=='lessons' }}" data-tour="lessons" href="{{ url_for('teacher.lessons') }}"><span class="i">🗺️</span>Lecciones</a>
+    <a class="nav {{ 'on' if page=='scenes' }}" data-tour="scenes" href="{{ url_for('teacher.scenes') }}"><span class="i">🖼️</span>Escenarios</a>
+    <a class="nav {{ 'on' if page=='topics' }}" data-tour="topics" href="{{ url_for('teacher.topics') }}"><span class="i">📚</span>Temas</a>
+    <a class="nav {{ 'on' if page=='games' }}" data-tour="games" href="{{ url_for('teacher.games') }}"><span class="i">⚡</span>Juegos rápidos</a>
+    <a class="nav {{ 'on' if page=='students' }}" data-tour="students" href="{{ url_for('teacher.students') }}"><span class="i">🧒</span>Alumnos</a>
+    <a class="nav {{ 'on' if page=='progress' }}" data-tour="progress" href="{{ url_for('teacher.progress') }}"><span class="i">📈</span>Progreso</a>
+    <a class="nav" href="#" data-tour-start data-tour="help"><span class="i">❓</span>Tutorial</a>
     <div class="spacer"></div>
     <div class="who">👩‍🏫 {{ session.name }}<br><a href="{{ url_for('auth.logout') }}">Cerrar sesión</a></div>
     <a class="nav" href="{{ url_for('auth.logout') }}" style="display:none" id="logout-mobile">🚪 Salir</a>
@@ -23,4 +25,26 @@
   </main>
 </div>
 <style>@media (max-width:900px){ #logout-mobile{display:flex !important} }</style>
+<script>
+window.TOUR = { key: "profe", steps: [
+  { title: "¡Bienvenida a English Quest! 👩‍🏫",
+    text: "En un minuto te muestro para qué sirve cada parte del panel. Andá tocando <b>Siguiente</b>." },
+  { el: "[data-tour=home]", title: "🏠 Inicio",
+    text: "El resumen de tu clase: tus alumnos, lo último que hicieron y accesos rápidos." },
+  { el: "[data-tour=topics]", title: "📚 Temas",
+    text: "<b>Empezá por acá.</b> Un tema es un grupo de palabras (por ejemplo <i>Colors</i> o <i>Animals</i>), cada una con su dibujo, traducción y una oración de ejemplo." },
+  { el: "[data-tour=lessons]", title: "🗺️ Lecciones",
+    text: "Una lección junta uno o más temas en un escenario (casa, escuela, parque…). Elegís las actividades: <b>Explorar, Tarjetas, Leer y escuchar, Escribir</b> y el <b>Desafío final</b>. Cuando la publicás, aparece como un lugar en el mapa de tus alumnos." },
+  { el: "[data-tour=scenes]", title: "🖼️ Escenarios",
+    text: "Además de la casa, la escuela o el parque, podés <b>crear tus propios escenarios con imágenes de tu compu</b> y marcar dónde aparece cada palabra." },
+  { el: "[data-tour=students]", title: "🧒 Alumnos",
+    text: "Cargá a tus alumnos. Cada uno recibe un <b>usuario</b> y un <b>PIN de 4 números</b> para entrar. Pasáselos para que puedan jugar." },
+  { el: "[data-tour=games]", title: "⚡ Juegos rápidos",
+    text: "Preguntas para jugar todos juntos en clase. Tocás <b>Jugar</b>, mostrás el código o el QR en la pantalla y los chicos entran desde el celu. ¡Gana el que responde bien y más rápido! En <b>📊 Resultados</b> ves el ranking y en qué se equivocó cada uno." },
+  { el: "[data-tour=progress]", title: "📈 Progreso",
+    text: "Las estrellas de cada alumno (actividades aprobadas), qué lecciones completó y cómo le fue en los juegos. Tocá un alumno para ver el detalle." },
+  { el: "[data-tour=help]", title: "❓ Tutorial",
+    text: "Si te olvidás de algo, tocá acá y lo volvés a ver. ¡A enseñar! 🚀" }
+]};
+</script>
 {% endblock %}

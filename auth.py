@@ -1,5 +1,5 @@
 """Login único para profe y alumnos, registro de profe y salida."""
-from flask import Blueprint, flash, redirect, render_template, request, session, url_for
+from flask import Blueprint, Response, abort, flash, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 
 import db
@@ -97,3 +97,15 @@ def join_link():
     if session.get("role") == "student":
         return redirect(url_for("student.play", code=code))
     return redirect(url_for("auth.login", next=f"/alumno/jugar?code={code}"))
+
+
+@bp.route("/escenario/<int:scene_id>/imagen")
+def scene_image(scene_id):
+    """Imagen de un escenario propio. La ven la profe que lo creó y sus alumnos."""
+    row = db.query_one("SELECT image, mime FROM custom_scenes WHERE id=%s AND teacher_id=%s",
+                       (scene_id, session.get("teacher_id")))
+    if not row:
+        abort(404)
+    resp = Response(row["image"], mimetype=row["mime"])
+    resp.headers["Cache-Control"] = "private, max-age=86400"
+    return resp

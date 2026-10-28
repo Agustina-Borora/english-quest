@@ -13,6 +13,14 @@
     <div><label class="lbl">Segundos por pregunta</label>
       <select class="field" id="g-time">{% for t in [10,15,20,30,45,60] %}<option value="{{ t }}" {{ 'selected' if t==game.time_limit }}>{{ t }} segundos</option>{% endfor %}</select></div>
   </div>
+  <label class="lbl" style="margin-top:14px">¿Para qué curso? <span class="muted" style="font-weight:400">(sin marcar = todos los cursos)</span></label>
+  <div class="actions" id="g-courses">
+    {% for c in courses %}
+    <label class="chip" style="font-size:1rem;padding:8px 14px;cursor:pointer"><input type="checkbox" value="{{ c }}" {{ 'checked' if c in chosen }}> {{ c }}</label>
+    {% else %}
+    <span class="muted">Todavía no hay cursos: se arman solos cuando cargás alumnos con su curso.</span>
+    {% endfor %}
+  </div>
 </div>
 
 <div class="card" style="margin-bottom:18px;background:linear-gradient(120deg,#fff4c2,#ffe3ec)">
@@ -93,7 +101,8 @@ $("#btn-gen").onclick = async () => {
 async function save() {
   sync();
   const r = await postJSON("{{ url_for('teacher.game_edit', game_id=game.id) }}", {
-    title: $("#g-title").value, emoji: $("#g-emoji").value, time: +$("#g-time").value, questions: Q });
+    title: $("#g-title").value, emoji: $("#g-emoji").value, time: +$("#g-time").value, questions: Q,
+    courses: $$("#g-courses input:checked").map(x => x.value) });
   return r;
 }
 $("#btn-save").onclick = async () => {

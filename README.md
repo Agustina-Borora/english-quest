@@ -13,7 +13,8 @@ Plataforma para aprender inglés jugando (primaria 4.º a 7.º), hecha en **Pyth
 |---|---|
 | **Inicio** | Resumen: alumnos, lecciones, temas, juegos, quién tiene más estrellas, últimas partidas. |
 | **Temas** | Grupos de palabras (inglés, traducción, dibujo/emoji y oración). Se pueden crear y editar. |
-| **Lecciones** | La "clase". Se elige el **escenario** (casa, súper, escuela, parque, zoológico, playa), los **temas** y **cómo se presenta**: qué actividades y en qué orden (Explorar, Tarjetas, Leer y escuchar, Escribir, Desafío final). Se puede asignar a un curso, ocultar/publicar y ver como alumno. |
+| **Lecciones** | La "clase". Se elige el **escenario** (casa, súper, escuela, parque, zoológico, playa o uno propio), los **temas** y **cómo se presenta**: con **todos los temas juntos** (las mismas actividades para todas las palabras) o **cada tema por separado** (cada tema con su escenario, sus actividades y su orden). Actividades: Explorar, Tarjetas, Leer y escuchar, Escribir, Desafío final. Se puede asignar a un curso, ocultar/publicar y ver como alumno. |
+| **Escenarios** | Además de los dibujados, la profe crea **escenarios propios con imágenes de su compu** (se achican solas antes de subirse) y puede tocar la imagen para marcar **dónde aparece cada palabra** en Explorar. Se pueden editar y borrar. |
 | **Juegos rápidos** | Se preparan de antemano y se usan cuando quieras. Se escriben a mano o se **generan solos desde un tema**. Se pueden duplicar. Al tocar **Jugar** se crea un código de 6 números + QR **nuevos**; al terminar quedan bloqueados. Los resultados quedan guardados. |
 | **Alumnos** | Se cargan pegando la lista del curso. Cada uno recibe usuario y PIN. Hay **tarjetas de acceso para imprimir**. |
 | **Progreso** | Cuántos terminaron cada lección, estrellas por alumno y lección, juegos jugados, % de aciertos, monedas y detalle por alumno. |
@@ -77,7 +78,8 @@ El archivo `database.sql` tiene el script completo, por si querés ver o crear l
 | `teachers` | Profes (la contraseña va encriptada) |
 | `students` | Alumnos: curso, usuario, PIN, personita, monedas |
 | `topics` / `words` | Temas y sus palabras |
-| `lessons` / `lesson_topics` | Lecciones: escenario, actividades en orden, curso; y qué temas usan |
+| `lessons` / `lesson_topics` | Lecciones: escenario, actividades en orden, curso, si va tema por tema; y qué temas usan (con su orden, escenario y actividades) |
+| `custom_scenes` | Escenarios propios de cada profe: nombre, imagen y lugares de las palabras |
 | `lesson_progress` | Progreso de cada alumno en cada actividad |
 | `quick_games` / `quick_questions` | Juegos rápidos y sus preguntas |
 | `game_sessions` / `game_results` | Cada partida jugada (con su código, que no se reutiliza) y los resultados |

@@ -13,7 +13,9 @@
   {% block content %}{% endblock %}
   <script src="{{ url_for('static', filename='js/common.js') }}"></script>
   <script src="{{ url_for('static', filename='js/avatar.js') }}"></script>
+  <script>window.CUSTOM_SCENES = {{ (CUSTOM_SCENES or {})|tojson }};</script>
   <script src="{{ url_for('static', filename='js/scenes.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/tour.js') }}"></script>
   {% block scripts %}{% endblock %}
 </body>
 </html>

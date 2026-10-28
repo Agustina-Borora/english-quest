@@ -233,6 +233,10 @@ def student_join(data):
         if room.teacher_id != student["teacher_id"]:
             emit("join_error", {"message": "Ese código es de otra profe. Revisalo 👀"})
             return
+        allowed = [c for c in (room.game.get("course") or "").split(",") if c]
+        if allowed and student["course"] not in allowed:
+            emit("join_error", {"message": f"Este juego es para {' y '.join(allowed)}. ¡Esperá el de tu curso! 😉"})
+            return
         existing = room.players.get(pid)
         if not existing:
             if room.state != "lobby":
@@ -242,7 +246,7 @@ def student_join(data):
                 emit("join_error", {"message": "La sala está llena."})
                 return
             room.players[pid] = {"name": student["name"], "avatar": parse_avatar(student["avatar"]), "score": 0,
-                                 "streak": 0, "correct": 0, "sid": request.sid}
+                                 "streak": 0, "correct": 0, "sid": request.sid, "log": []}
         else:
             existing["sid"] = request.sid
         player = room.players[pid]
@@ -290,6 +294,8 @@ def student_answer(data):
             player["streak"] = 0
         player["score"] += points
         room.answers[pid] = {"choice": choice, "points": points}
+        player["log"].append({"q": room.index + 1, "text": q["text"], "emoji": q["emoji"],
+                              "chosen": q["options"][choice], "answer": q["options"][q["answer"]], "ok": correct})
         result = {"correct": correct, "points": points, "score": player["score"], "streak": player["streak"],
                   "answer_text": q["options"][q["answer"]]}
         count, total, qindex, tsid = len(room.answers), len(room.players), room.index, room.teacher_sid
@@ -312,6 +318,8 @@ def reveal(code, qindex):
         for pid, p in room.players.items():
             if pid not in room.answers:
                 p["streak"] = 0
+                p["log"].append({"q": room.index + 1, "text": q["text"], "emoji": q["emoji"],
+                                 "chosen": None, "answer": q["options"][q["answer"]], "ok": False})
         payload = {"correct": q["answer"], "correct_text": q["options"][q["answer"]], "options": q["options"],
                    "counts": counts, "leaderboard": room.leaderboard()[:5],
                    "is_last": room.index >= len(room.questions) - 1,
@@ -342,6 +350,12 @@ def finish_game(code):
     db.execute_many("INSERT INTO game_results (session_id, student_id, score, correct, total, rank_pos) "
                     "VALUES (%s,%s,%s,%s,%s,%s)",
                     [(room.session_id, pid, p["score"], p["correct"], nq, i + 1) for i, (pid, p) in enumerate(ranking)])
+    # Guardar qué respondió cada alumno en cada pregunta
+    db.execute_many("INSERT INTO game_answers (session_id, student_id, qnum, question, emoji, chosen, correct_answer, "
+                    "is_correct) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)",
+                    [(room.session_id, pid, a["q"], a["text"][:255], a["emoji"][:16],
+                      a["chosen"][:120] if a["chosen"] else None, a["answer"][:120], int(a["ok"]))
+                     for pid, p in ranking for a in p["log"]])
     # Monedas de premio: 10 por respuesta correcta + 50/30/20 al podio
     bonus = {1: 50, 2: 30, 3: 20}
     for i, (pid, p) in enumerate(ranking):

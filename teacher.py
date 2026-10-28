@@ -1,11 +1,15 @@
-"""Panel de la profesora: alumnos, temas, lecciones, juegos rápidos y progreso."""
+"""Panel de la profesora: alumnos, temas, lecciones, escenarios, juegos rápidos y progreso."""
+import base64
+import binascii
+import json
 import random
 
 from flask import Blueprint, abort, flash, jsonify, redirect, render_template, request, url_for
 
 import db
-from common import (ACTIVITIES, SCENES, current_teacher_id, lesson_activities, lesson_words, make_pin,
-                    make_student_username, parse_avatar, safe_int, teacher_required)
+from common import (ACTIVITIES, SCENES, all_scenes, current_teacher_id, lesson_activities, lesson_step_keys,
+                    lesson_steps, lesson_topic_rows, lesson_words, make_pin, make_student_username, parse_avatar,
+                    parse_slots, safe_int, teacher_required)
 from seed import save_questions
 
 bp = Blueprint("teacher", __name__, url_prefix="/profe")
@@ -56,14 +60,15 @@ def student_progress(course=""):
         "WHERE s.teacher_id=%s GROUP BY gr.student_id", (tid,))
     games = {g["student_id"]: g for g in games}
 
+    keys = {l["id"]: lesson_step_keys(l) for l in lessons}
     result = []
     for s in students:
         my_lessons = [l for l in lessons if not l["course"] or l["course"] == s["course"]]
-        total_acts = sum(len(lesson_activities(l)) for l in my_lessons)
+        total_acts = sum(len(keys[l["id"]]) for l in my_lessons)
         my_done = done.get(s["id"], set())
-        stars = sum(1 for l in my_lessons for a in lesson_activities(l) if (l["id"], a) in my_done)
+        stars = sum(1 for l in my_lessons for a in keys[l["id"]] if (l["id"], a) in my_done)
         lessons_complete = sum(1 for l in my_lessons
-                               if lesson_activities(l) and all((l["id"], a) in my_done for a in lesson_activities(l)))
+                               if keys[l["id"]] and all((l["id"], a) in my_done for a in keys[l["id"]]))
         g = games.get(s["id"])
         result.append({
             **s,
@@ -138,7 +143,8 @@ def student_detail(sid):
     prog = db.query("SELECT * FROM lesson_progress WHERE student_id=%s", (sid,))
     prog = {(p["lesson_id"], p["activity"]): p for p in prog}
     for l in lessons:
-        l["acts"] = [{"id": a, **ACTIVITIES[a], "p": prog.get((l["id"], a))} for a in lesson_activities(l)]
+        l["acts"] = [{"id": st["key"], **ACTIVITIES[st["activity"]], "topic_emoji": st.get("topic_emoji", ""),
+                      "p": prog.get((l["id"], st["key"]))} for st in lesson_steps(l)]
         l["done"] = sum(1 for a in l["acts"] if a["p"] and a["p"]["passed"])
     results = db.query(
         "SELECT gr.*, gs.ended_at, g.title, g.emoji, gs.players FROM game_results gr "
@@ -255,6 +261,23 @@ def word_add(topic_id):
     return redirect(url_for("teacher.topic_edit", topic_id=topic_id) + "#palabras")
 
 
+@bp.route("/temas/<int:topic_id>/palabras/<int:word_id>/editar", methods=["POST"])
+@teacher_required
+def word_edit(topic_id, word_id):
+    """Corregir una palabra ya cargada (si nos equivocamos al escribirla)."""
+    own_topic(topic_id)
+    word = " ".join(request.form.get("word", "").strip().lower().split())[:40]
+    translation = request.form.get("translation", "").strip()[:60]
+    if not word or not translation:
+        flash("La palabra en inglés y la traducción no pueden quedar vacías.", "error")
+    else:
+        db.execute("UPDATE words SET word=%s, translation=%s, emoji=%s, sentence=%s WHERE id=%s AND topic_id=%s",
+                   (word, translation, request.form.get("emoji", "").strip()[:16] or "⭐",
+                    request.form.get("sentence", "").strip()[:200], word_id, topic_id))
+        flash(f"Se corrigió «{word}» ✔", "ok")
+    return redirect(url_for("teacher.topic_edit", topic_id=topic_id) + "#palabras")
+
+
 @bp.route("/temas/<int:topic_id>/palabras/<int:word_id>/borrar", methods=["POST"])
 @teacher_required
 def word_delete(topic_id, word_id):
@@ -283,8 +306,11 @@ def lessons():
     for l in rows:
         l["topics"] = [x for x in links if x["lesson_id"] == l["id"]]
         l["acts"] = [{"id": a, **ACTIVITIES[a]} for a in lesson_activities(l)]
+        if l["by_topic"]:
+            l["plan"] = [{**t, "acts": [ACTIVITIES[a] for a in t["activities"].split(",") if a in ACTIVITIES]}
+                         for t in lesson_topic_rows(l["id"])]
         l["n_words"] = len(lesson_words(l["id"]))
-    return render_template("teacher/lessons.html", lessons=rows, scenes=SCENES, page="lessons")
+    return render_template("teacher/lessons.html", lessons=rows, page="lessons")
 
 
 @bp.route("/lecciones/nueva", methods=["GET", "POST"])
@@ -296,40 +322,66 @@ def lesson_edit(lesson_id=None):
     all_topics = db.query("SELECT t.*, (SELECT COUNT(*) FROM words w WHERE w.topic_id=t.id) AS n "
                           "FROM topics t WHERE teacher_id=%s ORDER BY id", (tid,))
 
+    scenes = all_scenes(tid)
+
     if request.method == "POST":
         title = request.form.get("title", "").strip()[:100]
-        scene = request.form.get("scene") if request.form.get("scene") in SCENES else "house"
-        acts = [a for a in request.form.get("activities", "").split(",") if a in ACTIVITIES]
-        acts = list(dict.fromkeys(acts))
+        scene = request.form.get("scene") if request.form.get("scene") in scenes else "house"
+        acts = clean_activities(request.form.get("activities", "").split(","))
         topic_ids = {safe_int(x) for x in request.form.getlist("topics")} & {t["id"] for t in all_topics}
+        by_topic = request.form.get("mode") == "by_topic"
+        # Cómo se presenta cada tema: orden, escenario y actividades (en el modo "cada tema por separado")
+        plan = {}
+        try:
+            raw_plan = json.loads(request.form.get("plan") or "[]")
+        except ValueError:
+            raw_plan = []
+        for i, p in enumerate(raw_plan if isinstance(raw_plan, list) else []):
+            t_id = safe_int(p.get("topic_id")) if isinstance(p, dict) else 0
+            if t_id in topic_ids and t_id not in plan:
+                acts_t = p.get("activities") if isinstance(p.get("activities"), list) else []
+                plan[t_id] = (i, p.get("scene") if p.get("scene") in scenes else "", ",".join(clean_activities(acts_t)))
+        if by_topic:
+            if not topic_ids or any(not plan.get(t, (0, "", ""))[2] for t in topic_ids):
+                flash("Cada tema necesita al menos una actividad.", "error")
+                return redirect(request.url)
+            acts = acts or ["explore"]
         if not title or not acts or not topic_ids:
             flash("La lección necesita nombre, al menos un tema y al menos una actividad.", "error")
             return redirect(request.url)
-        values = (title, request.form.get("description", "").strip()[:255], scene, ",".join(acts),
+        values = (title, request.form.get("description", "").strip()[:255], scene, ",".join(acts), int(by_topic),
                   request.form.get("course", "").strip()[:30], 1 if request.form.get("published") else 0,
                   safe_int(request.form.get("position"), 0, 0, 999))
         if lesson:
-            db.execute("UPDATE lessons SET title=%s, description=%s, scene=%s, activities=%s, course=%s, "
+            db.execute("UPDATE lessons SET title=%s, description=%s, scene=%s, activities=%s, by_topic=%s, course=%s, "
                        "published=%s, position=%s WHERE id=%s", values + (lesson["id"],))
             lid = lesson["id"]
         else:
-            lid = db.execute("INSERT INTO lessons (title, description, scene, activities, course, published, position, "
-                             "teacher_id) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)", values + (tid,))
+            lid = db.execute("INSERT INTO lessons (title, description, scene, activities, by_topic, course, published, "
+                             "position, teacher_id) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)", values + (tid,))
         db.execute("DELETE FROM lesson_topics WHERE lesson_id=%s", (lid,))
-        db.execute_many("INSERT INTO lesson_topics (lesson_id, topic_id) VALUES (%s,%s)", [(lid, t) for t in topic_ids])
+        db.execute_many("INSERT INTO lesson_topics (lesson_id, topic_id, position, scene, activities) "
+                        "VALUES (%s,%s,%s,%s,%s)", [(lid, t) + plan.get(t, (99, "", "")) for t in topic_ids])
         flash("¡Lección guardada! 🎉", "ok")
         return redirect(url_for("teacher.lessons"))
 
-    selected = set()
+    selected, plan = set(), []
     if lesson:
-        selected = {r["topic_id"] for r in db.query("SELECT topic_id FROM lesson_topics WHERE lesson_id=%s", (lesson["id"],))}
+        rows = lesson_topic_rows(lesson["id"])
+        selected = {r["topic_id"] for r in rows}
+        plan = [{"topic_id": r["topic_id"], "scene": r["scene"],
+                 "activities": [a for a in r["activities"].split(",") if a in ACTIVITIES]} for r in rows]
         acts = lesson_activities(lesson)
     else:
         acts = ["explore", "read", "write", "quiz"]
     next_pos = db.query_one("SELECT COALESCE(MAX(position),0)+1 AS p FROM lessons WHERE teacher_id=%s", (tid,))["p"]
     return render_template("teacher/lesson_edit.html", lesson=lesson, topics=all_topics, selected=selected,
-                           acts=acts, activities=ACTIVITIES, scenes=SCENES, courses=courses(),
+                           acts=acts, plan=plan, activities=ACTIVITIES, courses=courses(),
                            next_pos=next_pos, page="lessons")
+
+
+def clean_activities(items):
+    return list(dict.fromkeys(a for a in items if a in ACTIVITIES))
 
 
 @bp.route("/lecciones/<int:lesson_id>/publicar", methods=["POST"])
@@ -355,10 +407,106 @@ def lesson_preview(lesson_id):
     """La profe ve la lección tal como la ve un alumno (sin guardar progreso)."""
     lesson = own("lessons", lesson_id)
     data = {"id": lesson["id"], "title": lesson["title"], "description": lesson["description"],
-            "scene": lesson["scene"], "activities": lesson_activities(lesson), "words": lesson_words(lesson_id),
+            "scene": lesson["scene"], "steps": lesson_steps(lesson), "words": lesson_words(lesson_id),
             "progress": {}}
     return render_template("student/lesson.html", lesson=data, activities=ACTIVITIES, preview=True,
                            avatar=parse_avatar(None), coins=0, name=lesson["title"])
+
+
+# ------------------------------------------------------------ escenarios propios (con imágenes de la profe)
+IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
+
+
+def read_image_data(data_url):
+    """La imagen llega achicada desde el navegador como "data:image/jpeg;base64,...". Devuelve (bytes, tipo)."""
+    if not data_url or not data_url.startswith("data:") or ";base64," not in data_url:
+        return None, None
+    head, b64 = data_url.split(";base64,", 1)
+    mime = head[5:]
+    if mime not in IMAGE_TYPES:
+        return None, None
+    try:
+        raw = base64.b64decode(b64, validate=True)
+    except (binascii.Error, ValueError):
+        return None, None
+    if not raw or len(raw) > 6 * 1024 * 1024:
+        return None, None
+    return raw, mime
+
+
+@bp.route("/escenarios")
+@teacher_required
+def scenes():
+    tid = current_teacher_id()
+    rows = db.query("SELECT id, name, slots FROM custom_scenes WHERE teacher_id=%s ORDER BY id", (tid,))
+    used = db.query("SELECT scene, COUNT(*) n FROM lessons WHERE teacher_id=%s GROUP BY scene", (tid,))
+    used = {u["scene"]: u["n"] for u in used}
+    for r in rows:
+        r["key"] = f"c{r['id']}"
+        r["n_slots"] = len(parse_slots(r["slots"]))
+        r["used"] = used.get(r["key"], 0)
+    return render_template("teacher/scenes.html", custom=rows, builtin=SCENES, used=used, page="scenes")
+
+
+@bp.route("/escenarios/nuevo", methods=["GET", "POST"])
+@bp.route("/escenarios/<int:scene_id>", methods=["GET", "POST"])
+@teacher_required
+def scene_edit(scene_id=None):
+    tid = current_teacher_id()
+    scene = own("custom_scenes", scene_id) if scene_id else None
+    if request.method == "POST":
+        name = request.form.get("name", "").strip()[:60]
+        slots = json.dumps(parse_slots(request.form.get("slots")))
+        image, mime = read_image_data(request.form.get("image_data"))
+        if not name:
+            flash("Ponele un nombre al escenario.", "error")
+            return redirect(request.url)
+        if request.form.get("image_data") and not image:
+            flash("No pude leer la imagen 😕. Probá con una foto JPG o PNG.", "error")
+            return redirect(request.url)
+        if scene:
+            db.execute("UPDATE custom_scenes SET name=%s, slots=%s WHERE id=%s", (name, slots, scene["id"]))
+            if image:
+                db.execute("UPDATE custom_scenes SET image=%s, mime=%s WHERE id=%s", (image, mime, scene["id"]))
+        else:
+            if not image:
+                flash("Elegí una imagen de tu compu para el escenario.", "error")
+                return redirect(request.url)
+            db.execute("INSERT INTO custom_scenes (teacher_id, name, image, mime, slots) VALUES (%s,%s,%s,%s,%s)",
+                       (tid, name, image, mime, slots))
+        flash("¡Escenario guardado! 🖼️ Ya lo podés elegir en tus lecciones.", "ok")
+        return redirect(url_for("teacher.scenes"))
+    slots = parse_slots(scene["slots"]) if scene else []
+    # Para ver qué palabra cae en cada número: los temas con sus palabras, en el orden en que aparecen
+    topics = db.query("SELECT id, title, emoji FROM topics WHERE teacher_id=%s ORDER BY id", (tid,))
+    words = db.query("SELECT w.topic_id, w.word, w.translation FROM words w JOIN topics t ON t.id=w.topic_id "
+                     "WHERE t.teacher_id=%s ORDER BY w.position, w.id", (tid,))
+    for t in topics:
+        t["words"] = [{"word": w["word"], "translation": w["translation"]} for w in words if w["topic_id"] == t["id"]]
+    # Arranca mostrando el tema que ya usa este escenario (en un tema o en toda la lección)
+    used = None
+    if scene:
+        key = f"c{scene['id']}"
+        used = db.query_one("SELECT lt.topic_id FROM lesson_topics lt JOIN lessons l ON l.id=lt.lesson_id "
+                            "WHERE l.teacher_id=%s AND (lt.scene=%s OR (lt.scene='' AND l.scene=%s)) "
+                            "ORDER BY lt.scene=%s DESC, lt.position LIMIT 1", (tid, key, key, key))
+    return render_template("teacher/scene_edit.html", scene=scene, slots=slots, topics=topics,
+                           topic_id=used["topic_id"] if used else None, page="scenes")
+
+
+@bp.route("/escenarios/<int:scene_id>/borrar", methods=["POST"])
+@teacher_required
+def scene_delete(scene_id):
+    sc = own("custom_scenes", scene_id)
+    key = f"c{scene_id}"
+    tid = current_teacher_id()
+    # Las lecciones que lo usaban vuelven a la casa; los temas, al escenario de su lección
+    db.execute("UPDATE lessons SET scene='house' WHERE teacher_id=%s AND scene=%s", (tid, key))
+    db.execute("UPDATE lesson_topics lt JOIN lessons l ON l.id=lt.lesson_id SET lt.scene='' "
+               "WHERE l.teacher_id=%s AND lt.scene=%s", (tid, key))
+    db.execute("DELETE FROM custom_scenes WHERE id=%s", (scene_id,))
+    flash(f"Se eliminó el escenario «{sc['name']}».", "ok")
+    return redirect(url_for("teacher.scenes"))
 
 
 # ------------------------------------------------------------ juegos rápidos
@@ -370,7 +518,17 @@ def games():
         "(SELECT COUNT(*) FROM game_sessions s WHERE s.game_id=g.id AND s.ended_at IS NOT NULL AND s.players>0) AS played, "
         "(SELECT MAX(ended_at) FROM game_sessions s WHERE s.game_id=g.id AND s.players>0) AS last_played "
         "FROM quick_games g WHERE teacher_id=%s ORDER BY g.id DESC", (current_teacher_id(),))
-    return render_template("teacher/games.html", games=rows, page="games")
+    for g in rows:
+        g["courses"] = game_courses(g)
+    course = request.args.get("curso", "")
+    if course:
+        rows = [g for g in rows if not g["courses"] or course in g["courses"]]
+    return render_template("teacher/games.html", games=rows, courses=courses(), course=course, page="games")
+
+
+def game_courses(game):
+    """Cursos a los que está dirigido un juego (lista vacía = todos los cursos)."""
+    return [c for c in (game.get("course") or "").split(",") if c]
 
 
 @bp.route("/juegos/nuevo", methods=["POST"])
@@ -399,8 +557,11 @@ def game_edit(game_id):
             questions.append({"text": text, "emoji": str(q.get("emoji", ""))[:16], "options": opts, "correct": correct})
         if not questions:
             return jsonify({"ok": False, "error": "Agregá al menos una pregunta completa (texto, 2 opciones y la correcta)."}), 400
-        db.execute("UPDATE quick_games SET title=%s, emoji=%s, time_limit=%s WHERE id=%s",
-                   (title, str(data.get("emoji", "⚡"))[:16] or "⚡", safe_int(data.get("time"), 20, 5, 120), game_id))
+        chosen = [str(c).strip().replace(",", " ")[:30] for c in (data.get("courses") or []) if str(c).strip()]
+        course = ",".join(dict.fromkeys(chosen))[:120]
+        db.execute("UPDATE quick_games SET title=%s, emoji=%s, time_limit=%s, course=%s WHERE id=%s",
+                   (title, str(data.get("emoji", "⚡"))[:16] or "⚡", safe_int(data.get("time"), 20, 5, 120), course,
+                    game_id))
         save_questions(game_id, questions)
         return jsonify({"ok": True, "saved": len(questions)})
 
@@ -409,7 +570,11 @@ def game_edit(game_id):
            "correct": q["correct"]} for q in questions]
     topics_rows = db.query("SELECT t.id, t.title, t.emoji, (SELECT COUNT(*) FROM words w WHERE w.topic_id=t.id) AS n "
                            "FROM topics t WHERE teacher_id=%s ORDER BY id", (current_teacher_id(),))
-    return render_template("teacher/game_edit.html", game=game, questions=qs, topics=topics_rows, page="games")
+    all_courses = courses()
+    chosen = game_courses(game)
+    all_courses += [c for c in chosen if c not in all_courses]
+    return render_template("teacher/game_edit.html", game=game, questions=qs, topics=topics_rows,
+                           courses=all_courses, chosen=chosen, page="games")
 
 
 @bp.route("/juegos/<int:game_id>/generar", methods=["POST"])
@@ -444,8 +609,8 @@ def game_generate(game_id):
 @teacher_required
 def game_duplicate(game_id):
     g = own("quick_games", game_id)
-    new_id = db.execute("INSERT INTO quick_games (teacher_id, title, emoji, time_limit) VALUES (%s,%s,%s,%s)",
-                        (g["teacher_id"], (g["title"] + " (copia)")[:100], g["emoji"], g["time_limit"]))
+    new_id = db.execute("INSERT INTO quick_games (teacher_id, title, emoji, time_limit, course) VALUES (%s,%s,%s,%s,%s)",
+                        (g["teacher_id"], (g["title"] + " (copia)")[:100], g["emoji"], g["time_limit"], g["course"]))
     db.execute("INSERT INTO quick_questions (game_id, position, text, emoji, opt1, opt2, opt3, opt4, correct) "
                "SELECT %s, position, text, emoji, opt1, opt2, opt3, opt4, correct FROM quick_questions WHERE game_id=%s",
                (new_id, game_id))
@@ -482,8 +647,14 @@ def game_history(game_id):
     results = db.query(
         "SELECT gr.*, s.name, s.avatar, s.course FROM game_results gr JOIN students s ON s.id=gr.student_id "
         "JOIN game_sessions gs ON gs.id=gr.session_id WHERE gs.game_id=%s ORDER BY gr.rank_pos", (game_id,))
+    answers = db.query(
+        "SELECT ga.* FROM game_answers ga JOIN game_sessions gs ON gs.id=ga.session_id "
+        "WHERE gs.game_id=%s ORDER BY ga.qnum", (game_id,))
     for r in results:
         r["avatar_data"] = parse_avatar(r["avatar"])
+        mine = [a for a in answers if a["session_id"] == r["session_id"] and a["student_id"] == r["student_id"]]
+        r["has_detail"] = bool(mine)
+        r["mistakes"] = [a for a in mine if not a["is_correct"]]
     for s in sessions:
         s["results"] = [r for r in results if r["session_id"] == s["id"]]
     return render_template("teacher/game_history.html", game=game, sessions=sessions, page="games")
@@ -497,13 +668,18 @@ def progress():
     rows = student_progress(course)
     lessons = db.query("SELECT * FROM lessons WHERE teacher_id=%s AND published=1 ORDER BY position, id",
                        (current_teacher_id(),))
-    passed = db.query("SELECT lp.lesson_id, lp.student_id, COUNT(*) n FROM lesson_progress lp JOIN students s "
-                      "ON s.id=lp.student_id WHERE s.teacher_id=%s AND lp.passed=1 GROUP BY lp.lesson_id, lp.student_id",
-                      (current_teacher_id(),))
-    cell = {(p["student_id"], p["lesson_id"]): p["n"] for p in passed}
+    passed = db.query("SELECT lp.lesson_id, lp.student_id, lp.activity FROM lesson_progress lp JOIN students s "
+                      "ON s.id=lp.student_id WHERE s.teacher_id=%s AND lp.passed=1", (current_teacher_id(),))
+    keys = {l["id"]: set(lesson_step_keys(l)) for l in lessons}
+    cell = {}
+    for p in passed:
+        # Solo cuentan las actividades que la lección tiene ahora
+        if p["activity"] in keys.get(p["lesson_id"], ()):
+            k = (p["student_id"], p["lesson_id"])
+            cell[k] = cell.get(k, 0) + 1
     ids = {r["id"] for r in rows}
     for l in lessons:
-        l["n_acts"] = len(lesson_activities(l))
+        l["n_acts"] = len(keys[l["id"]])
         eligible = [r for r in rows if not l["course"] or l["course"] == r["course"]]
         done = sum(1 for r in eligible if cell.get((r["id"], l["id"]), 0) >= l["n_acts"])
         l["complete_pct"] = round(100 * done / len(eligible)) if eligible else 0

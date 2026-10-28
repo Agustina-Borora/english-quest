@@ -129,7 +129,18 @@ const SCENE_BG = {
     <g transform="translate(1250 700)"><path d="M-160 0 Q0 -150 160 0 Z" fill="#ff5fa2"/><path d="M-160 0 Q-80 -110 0 -150 Q-40 -70 -53 0 Z" fill="#fff" opacity=".6"/><path d="M53 0 Q40 -70 0 -150 Q80 -110 160 0 Z" fill="#fff" opacity=".6"/><rect x="-5" y="0" width="10" height="200" fill="#8a5a3b"/></g>`,
 };
 
+// Escenarios que creó la profe con sus imágenes (vienen del servidor en window.CUSTOM_SCENES)
+const CUSTOM = window.CUSTOM_SCENES || {};
+Object.entries(CUSTOM).forEach(([k, c]) => { SCENE_INFO[k] = { name: c.name, es: c.name, color: "#5b2bd6" }; });
+
+function sceneSlots(scene) {
+  const c = CUSTOM[scene];
+  return c && c.slots && c.slots.length ? c.slots : SCENE_SLOTS;
+}
+
 function sceneSVG(scene) {
+  const c = CUSTOM[scene];
+  if (c) return `<img class="scene-bg" src="${esc(c.img)}" alt="${esc(c.name)}">`;
   const draw = SCENE_BG[scene] || SCENE_BG.house;
   return `<svg class="scene-bg" viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">${draw()}</svg>`;
 }
@@ -180,5 +191,10 @@ const BUILDINGS = {
 };
 
 function buildingSVG(scene) {
+  const c = CUSTOM[scene];
+  if (c) return `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><defs><clipPath id="cb-${esc(scene)}"><rect x="20" y="20" width="160" height="160" rx="34"/></clipPath></defs>
+    <ellipse cx="100" cy="188" rx="80" ry="10" fill="#000" opacity=".15"/>
+    <image href="${esc(c.img)}" x="20" y="20" width="160" height="160" preserveAspectRatio="xMidYMid slice" clip-path="url(#cb-${esc(scene)})"/>
+    <rect x="20" y="20" width="160" height="160" rx="34" fill="none" stroke="#fff" stroke-width="10"/></svg>`;
   return `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">${BUILDINGS[scene] || BUILDINGS.house}</svg>`;
 }
