@@ -145,16 +145,35 @@ function dots(el, n, results, now) {
 function others(w, n, pool = WORDS) { return shuffle(pool.filter(x => x !== w)).slice(0, n); }
 
 // ------------------------------------------------------------ 1) Explorar
+// Para comparar el nombre que la profe le puso a un lugar con una palabra: "La Cabeza" = "cabeza"
+const norm = t => String(t || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim()
+  .replace(/^(el|la|los|las|un|una|the|a|an)\s+/, "");
+
+// Ordena las palabras según los lugares: si un lugar tiene nombre (ej: "cabeza"), va ahí la palabra
+// que coincide (en inglés o en castellano); las demás ocupan los lugares libres y las páginas siguientes.
+function arrangeWords(words, slots) {
+  const first = new Array(slots.length).fill(null), rest = [...words];
+  slots.forEach((s, i) => {
+    const label = norm(s[2]);
+    if (!label) return;
+    const k = rest.findIndex(w => norm(w.word) === label || norm(w.translation) === label);
+    if (k >= 0) first[i] = rest.splice(k, 1)[0];
+  });
+  first.forEach((w, i) => { if (!w && rest.length) first[i] = rest.shift(); });
+  return [...first, ...rest];
+}
+
 function explore() {
   const SLOTS = sceneSlots(SCENE);
   const PAGE = SLOTS.length;
-  const pages = Math.ceil(WORDS.length / PAGE);
+  const ORDER = arrangeWords(WORDS, SLOTS);   // puede tener huecos (null) si hay menos palabras que lugares
+  const pages = Math.ceil(ORDER.length / PAGE);
   const seen = new Set();
   let page = 0;
   const draw = () => {
-    const items = WORDS.slice(page * PAGE, page * PAGE + PAGE);
+    const items = ORDER.slice(page * PAGE, page * PAGE + PAGE);
     $("#stage").innerHTML = `<div class="scene ${CUSTOM[SCENE] ? "custom" : ""}">${sceneSVG(SCENE)}
-      ${items.map((w, i) => `<button class="obj ${seen.has(w.word) ? "seen" : ""}" data-w="${page * PAGE + i}" style="left:${SLOTS[i][0]}%;top:${SLOTS[i][1]}%;animation-delay:${-i * .4}s">${w.emoji || "⭐"}</button>`).join("")}
+      ${items.map((w, i) => w ? `<button class="obj ${seen.has(w.word) ? "seen" : ""}" data-w="${page * PAGE + i}" style="left:${SLOTS[i][0]}%;top:${SLOTS[i][1]}%;animation-delay:${-i * .4}s">${w.emoji || "⭐"}</button>` : "").join("")}
       <div class="guide">${avatarSVG(window.ME)}</div>
       <div class="say-bubble">Tap everything! 👆 <small>Tocá todo</small></div></div>`;
     $("#below").innerHTML = `<div class="bar-row"><span>🔍 Descubiertas: ${seen.size}/${WORDS.length}</span>
@@ -162,7 +181,7 @@ function explore() {
       ${pages > 1 ? `<button class="btn small ghost" id="pg">${page + 1}/${pages} ➜ Más cosas</button>` : ""}</div>`;
     const pg = $("#pg"); if (pg) pg.onclick = () => { page = (page + 1) % pages; draw(); };
     $$("#stage .obj").forEach(b => b.onclick = () => {
-      const w = WORDS[+b.dataset.w];
+      const w = ORDER[+b.dataset.w];
       const isNew = !seen.has(w.word);
       seen.add(w.word);
       speak(w.word);

@@ -20,10 +20,11 @@
 
   <div class="card" style="margin-bottom:18px">
     <h2>2️⃣ ¿Dónde aparecen las palabras? <small class="muted" style="font-weight:400">· opcional</small></h2>
-    <p class="muted" style="margin-top:0">Tocá la imagen para poner un lugar (hasta 12). En la actividad <b>Explorar</b>, cada palabra aparece en uno de estos lugares, en orden. Tocá un número para sacarlo. Si no marcás ninguno, se ubican solas.</p>
+    <p class="muted" style="margin-top:0">Tocá la imagen para poner un lugar (hasta 12) y escribí abajo <b>qué hay en ese lugar</b> (ej: <i>cabeza</i> o <i>head</i>). En la actividad <b>Explorar</b>, la palabra que coincide con ese nombre aparece justo ahí; las demás ocupan los lugares que quedan libres. Si no marcás ninguno, se ubican solas.</p>
     <div class="scene-editor" id="editor">
       {% if scene %}<img class="scene-bg" id="img" src="{{ url_for('auth.scene_image', scene_id=scene.id) }}" alt="">{% else %}<img class="scene-bg" id="img" alt="" hidden><div class="ph" id="ph">📂 Primero elegí una imagen</div>{% endif %}
     </div>
+    <ol class="slot-list" id="slot-list"></ol>
     <div class="actions" style="margin-top:10px">
       <button type="button" class="btn small light" id="undo">↩ Sacar el último</button>
       <button type="button" class="btn small light" id="clear">🧹 Sacar todos</button>
@@ -44,13 +45,26 @@ let slots = {{ slots|tojson }};
 const MAX = 12;
 const editor = $("#editor"), img = $("#img");
 
-function drawSlots() {
-  $$("#editor .pin").forEach(p => p.remove());
-  slots.forEach(([x, y], i) => editor.insertAdjacentHTML("beforeend",
-    `<button type="button" class="pin" data-i="${i}" style="left:${x}%;top:${y}%" title="Sacar">${i + 1}</button>`));
-  $$("#editor .pin").forEach(p => p.onclick = e => { e.stopPropagation(); slots.splice(+p.dataset.i, 1); drawSlots(); });
-  $("#slots").value = JSON.stringify(slots);
+const save = () => { $("#slots").value = JSON.stringify(slots); };
+
+// Cada lugar es [x, y, nombre]: el número va sobre la imagen y, abajito, lo que contiene
+function drawSlots(focus) {
+  $$("#editor .pin, #editor .pin-label").forEach(p => p.remove());
+  slots.forEach(([x, y, label], i) => editor.insertAdjacentHTML("beforeend",
+    `<button type="button" class="pin" data-i="${i}" style="left:${x}%;top:${y}%" title="Escribir qué hay acá">${i + 1}</button>
+     <span class="pin-label" data-l="${i}" style="left:${x}%;top:${y}%" ${label ? "" : "hidden"}>${esc(label)}</span>`));
+  $$("#editor .pin").forEach(p => p.onclick = e => { e.stopPropagation(); $(`#slot-list [data-n="${p.dataset.i}"]`).focus(); });
+  $("#slot-list").innerHTML = slots.map(([, , label], i) => `<li><span class="n">${i + 1}</span>
+    <input class="field" data-n="${i}" maxlength="40" value="${esc(label || "")}" placeholder="¿Qué hay en el lugar ${i + 1}? (ej: cabeza)">
+    <button type="button" class="btn small red" data-del="${i}" title="Sacar este lugar">🗑</button></li>`).join("");
+  $$("#slot-list input").forEach(inp => inp.oninput = () => {
+    const i = +inp.dataset.n, lab = $(`#editor [data-l="${i}"]`);
+    slots[i][2] = inp.value; lab.textContent = inp.value; lab.hidden = !inp.value.trim(); save();
+  });
+  $$("#slot-list [data-del]").forEach(b => b.onclick = () => { slots.splice(+b.dataset.del, 1); drawSlots(); });
+  save();
   $("#count").textContent = slots.length ? `${slots.length}/${MAX} lugares` : "Sin lugares marcados (se ubican solas)";
+  if (focus !== undefined) $(`#slot-list [data-n="${focus}"]`).focus();
 }
 
 editor.onclick = e => {
@@ -58,8 +72,8 @@ editor.onclick = e => {
   if (slots.length >= MAX) return toast(`Ya marcaste los ${MAX} lugares`);
   const r = editor.getBoundingClientRect();
   const x = Math.round((e.clientX - r.left) / r.width * 100), y = Math.round((e.clientY - r.top) / r.height * 100);
-  slots.push([Math.min(97, Math.max(3, x)), Math.min(95, Math.max(5, y))]);
-  drawSlots();
+  slots.push([Math.min(97, Math.max(3, x)), Math.min(95, Math.max(5, y)), ""]);
+  drawSlots(slots.length - 1);
 };
 $("#undo").onclick = () => { slots.pop(); drawSlots(); };
 $("#clear").onclick = () => { slots = []; drawSlots(); };

@@ -187,13 +187,17 @@ def all_scenes(teacher_id):
 
 
 def parse_slots(raw):
-    """Lugares (en %) donde aparecen las palabras sobre la imagen: [[x, y], ...]."""
+    """
+    Lugares (en %) donde aparecen las palabras sobre la imagen: [[x, y, "nombre"], ...].
+    El nombre (ej: "cabeza") es opcional: si coincide con una palabra o su traducción, esa palabra va ahí.
+    """
     try:
         data = json.loads(raw) if raw else []
     except (TypeError, ValueError):
         return []
     out = []
     for p in data if isinstance(data, list) else []:
-        if isinstance(p, (list, tuple)) and len(p) == 2:
-            out.append([safe_int(p[0], 50, 3, 97), safe_int(p[1], 50, 5, 95)])
+        if isinstance(p, (list, tuple)) and len(p) in (2, 3):
+            label = str(p[2]).strip()[:40] if len(p) == 3 and p[2] is not None else ""
+            out.append([safe_int(p[0], 50, 3, 97), safe_int(p[1], 50, 5, 95), label])
     return out[:12]
