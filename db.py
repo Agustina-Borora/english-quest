@@ -92,6 +92,7 @@ SCHEMA = [
         title VARCHAR(100) NOT NULL,
         emoji VARCHAR(16) NOT NULL DEFAULT '⚡',
         time_limit INT NOT NULL DEFAULT 20,
+        course VARCHAR(120) NOT NULL DEFAULT '',
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (teacher_id) REFERENCES teachers(id) ON DELETE CASCADE
     )""",
@@ -125,6 +126,19 @@ SCHEMA = [
         correct INT NOT NULL DEFAULT 0,
         total INT NOT NULL DEFAULT 0,
         rank_pos INT NOT NULL DEFAULT 0,
+        FOREIGN KEY (session_id) REFERENCES game_sessions(id) ON DELETE CASCADE,
+        FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
+    )""",
+    """CREATE TABLE IF NOT EXISTS game_answers (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        session_id INT NOT NULL,
+        student_id INT NOT NULL,
+        qnum INT NOT NULL DEFAULT 0,
+        question VARCHAR(255) NOT NULL,
+        emoji VARCHAR(16) NOT NULL DEFAULT '',
+        chosen VARCHAR(120) NULL,
+        correct_answer VARCHAR(120) NOT NULL,
+        is_correct TINYINT NOT NULL DEFAULT 0,
         FOREIGN KEY (session_id) REFERENCES game_sessions(id) ON DELETE CASCADE,
         FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
     )""",
@@ -199,6 +213,11 @@ def init_db():
         with conn.cursor() as cur:
             for table_sql in SCHEMA:
                 cur.execute(table_sql + TABLE_OPTIONS)
+            # Bases creadas antes de que los juegos tuvieran curso: agregar la columna
+            cur.execute("SELECT COUNT(*) n FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=%s "
+                        "AND TABLE_NAME='quick_games' AND COLUMN_NAME='course'", (config.DB_NAME,))
+            if not cur.fetchone()["n"]:
+                cur.execute("ALTER TABLE quick_games ADD COLUMN course VARCHAR(120) NOT NULL DEFAULT '' AFTER time_limit")
     finally:
         conn.close()
 

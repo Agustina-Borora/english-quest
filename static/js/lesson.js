@@ -15,6 +15,57 @@ function stepper() {
   $$("#stepper button").forEach(b => b.onclick = () => openActivity(+b.dataset.i));
 }
 
+// ------------------------------------------------------------ ¿cómo se juega?
+// La primera vez que se abre cada actividad se explica sola; después, con el botón ❓.
+const HOWTO = {
+  explore: () => [
+    "👆 Tocá cada objeto que aparece en la escena.",
+    "🔊 Vas a escuchar cómo se dice en inglés y ver qué significa.",
+    "➜ Si aparece <b>Más cosas</b>, tocalo: hay más objetos escondidos.",
+    "⭐ Cuando descubras <b>todos</b>, ganás la estrella."],
+  cards: () => [
+    "👆 Tocá la tarjeta para darla vuelta y ver qué significa.",
+    "🔊 El botón amarillo repite la palabra, más despacio.",
+    "➡ Pasá a la siguiente con la flecha. En la última aparece 🏁.",
+    "⭐ Mirá <b>todas</b> las tarjetas para ganar la estrella."],
+  read: () => [
+    "📖 <b>Leé</b> la palabra en inglés y tocá el dibujo que corresponde.",
+    "👂 <b>Escuchá</b> la palabra (tocá 🔊 para repetirla) y tocá cómo se escribe.",
+    "✅ Si te equivocás, te muestra en verde la respuesta correcta.",
+    `⭐ Acertá al menos <b>${needed(Math.min(6, WORDS.length))} de ${Math.min(6, WORDS.length)}</b> para ganar la estrella.`],
+  write: () => [
+    "🇦🇷 Te muestro un dibujo y la palabra en castellano.",
+    "🔤 Tocá las letras en orden para escribirla en inglés (también podés usar el teclado). ¡Ojo: hay 2 letras que sobran!",
+    "↩ Si te equivocás, tocá una letra de arriba o <b>Borrar</b>. Tenés 2 intentos por palabra.",
+    `⭐ Las que te salen a la primera cuentan como acierto: necesitás <b>${needed(Math.min(5, WORDS.length))} de ${Math.min(5, WORDS.length)}</b>.`],
+  quiz: () => [
+    "🏁 Es el repaso final de todo lo que aprendiste.",
+    "❓ Hay dos tipos de pregunta: <b>¿Cómo se dice en inglés…?</b> y <b>¿Qué significa…?</b>",
+    "👆 Tocá la respuesta correcta.",
+    `⭐ Acertá al menos <b>${needed(Math.min(6, WORDS.length))} de ${Math.min(6, WORDS.length)}</b> para ganar la estrella.`],
+};
+function needed(total) { return Math.ceil(total * 0.6); }
+
+function howto(a) {
+  try { localStorage.setItem("howto_" + a, "1"); } catch (e) { /* sin almacenamiento */ }
+  modal(`
+    <span class="w-emoji">${ACTS[a].emoji}</span>
+    <h2>¿Cómo se juega ${ACTS[a].name}?</h2>
+    <ul class="howto">${HOWTO[a]().map(x => `<li>${x}</li>`).join("")}</ul>
+    <div class="row"><button class="btn green" data-go>¡A jugar! 🚀</button></div>`,
+    box => { $("[data-go]", box).onclick = closeModal; });
+}
+function maybeHowto(a) {
+  let seen = false;
+  try { seen = localStorage.getItem("howto_" + a) === "1"; } catch (e) { seen = true; }
+  if (!seen) howto(a);
+}
+// Si el tutorial de la pantalla se va a mostrar, la explicación espera a que termine
+let tourPending = !!(window.TOUR && window.tourSeen) && !window.tourSeen(window.TOUR.key);
+if (window.TOUR) window.TOUR.onEnd = () => { tourPending = false; if (WORDS.length) maybeHowto(LS.activities[current]); };
+const howtoBtn = $("#howto-btn");
+if (howtoBtn) howtoBtn.onclick = () => { if (WORDS.length) howto(LS.activities[current]); };
+
 function openActivity(i) {
   if (cleanup) { cleanup(); cleanup = null; }
   current = i;
@@ -26,6 +77,7 @@ function openActivity(i) {
   }
   const a = LS.activities[i];
   ({ explore, cards, read, write, quiz })[a]();
+  if (!tourPending) maybeHowto(a);
 }
 
 // ------------------------------------------------------------ resultado y guardado

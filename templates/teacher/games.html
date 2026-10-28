@@ -5,6 +5,14 @@
   <div><h1>⚡ Juegos rápidos</h1><p>Preparalos con tiempo y usalos cuando quieras. Al tocar <b>Jugar</b> se genera un código y un QR nuevos para esa partida.</p></div>
   <form method="post" action="{{ url_for('teacher.game_new') }}"><button class="btn">➕ Crear juego</button></form>
 </div>
+{% if courses %}
+<form method="get" style="margin-bottom:16px">
+  <select class="field" name="curso" onchange="this.form.submit()" style="width:auto;padding:8px 12px">
+    <option value="">Todos los cursos</option>
+    {% for c in courses %}<option value="{{ c }}" {{ 'selected' if c == course }}>Juegos para {{ c }}</option>{% endfor %}
+  </select>
+</form>
+{% endif %}
 
 <div class="grid3">
   {% for g in games %}
@@ -13,6 +21,7 @@
       <span class="em">{{ g.emoji }}</span>
       <h3>{{ g.title }}</h3>
       <small>{{ g.n }} preguntas · {{ g.time_limit }} s cada una</small>
+      <small style="display:block;margin-top:2px">🏫 {{ 'Para ' ~ g.courses|join(' y ') if g.courses else 'Para todos los cursos' }}</small>
     </div>
     <div class="body">
       <p class="muted" style="margin:0">

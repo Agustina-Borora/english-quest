@@ -10,7 +10,7 @@
   <h2>🗓️ {{ s.ended_at.strftime('%d/%m/%Y %H:%M') }} · {{ s.players }} jugadores <span class="chip gray">código {{ s.code }} 🔒</span></h2>
   <div class="table-wrap">
     <table class="t">
-      <tr><th>Puesto</th><th>Alumno</th><th>Curso</th><th>Correctas</th><th>Puntos</th></tr>
+      <tr><th>Puesto</th><th>Alumno</th><th>Curso</th><th>Correctas</th><th>Puntos</th><th>Errores</th></tr>
       {% for r in s.results %}
       <tr>
         <td style="font-size:1.3rem">{{ ['🥇','🥈','🥉'][r.rank_pos-1] if r.rank_pos <= 3 else r.rank_pos ~ '.º' }}</td>
@@ -18,6 +18,24 @@
         <td>{{ r.course or '—' }}</td>
         <td style="min-width:140px"><div class="bar warm"><div style="width:{{ (100 * r.correct / r.total)|round if r.total else 0 }}%"></div></div><small>{{ r.correct }}/{{ r.total }}</small></td>
         <td><b>{{ r.score }}</b></td>
+        <td>
+          {% if not r.has_detail %}<small class="muted">—</small>
+          {% elif not r.mistakes %}<span class="chip green">✅ Ninguno</span>
+          {% else %}
+          <details class="mistakes">
+            <summary>❌ Ver {{ r.mistakes|length }}</summary>
+            <ul>
+              {% for a in r.mistakes %}
+              <li>
+                <b>{{ a.qnum }}. {{ a.emoji }} {{ a.question }}</b><br>
+                {% if a.chosen %}Eligió: <span class="bad">{{ a.chosen }}</span>{% else %}<span class="bad">No respondió ⏰</span>{% endif %}
+                · Correcta: <span class="good">{{ a.correct_answer }}</span>
+              </li>
+              {% endfor %}
+            </ul>
+          </details>
+          {% endif %}
+        </td>
       </tr>
       {% endfor %}
     </table>

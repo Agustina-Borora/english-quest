@@ -20,12 +20,25 @@
     <div><h1>{{ lesson.title }}</h1><p>{{ lesson.description }}</p></div>
   </div>
   <div class="stepper" id="stepper"></div>
+  <div class="howto-row"><button type="button" class="btn small white" id="howto-btn">❓ ¿Cómo se juega?</button></div>
   <div class="stage-box" id="stage"></div>
   <div id="below"></div>
 </div>
 {% endblock %}
 {% block scripts %}
 <script>
+window.TOUR = { key: "leccion", steps: [
+  { title: "¡Bienvenido a tu primera lección! 🎒",
+    text: "Te muestro cómo funciona. Tocá <b>Siguiente</b>." },
+  { el: "#stepper", title: "⭐ Las actividades",
+    text: "Cada lección tiene varias actividades. Hacelas en orden: cuando aprobás una, su ☆ se vuelve <b>⭐</b>. ¡Juntá todas las estrellas para completar la lección!" },
+  { el: "#stage", title: "🎮 Acá se juega",
+    text: "En este cuadro aparece la actividad que elegiste. Tocá, escuchá y respondé acá." },
+  { el: "#howto-btn", title: "❓ ¿Cómo se juega?",
+    text: "Cada actividad se juega distinto. Si no sabés qué hacer, tocá este botón y te lo explico." },
+  { el: "#coins", title: "🪙 Tus monedas",
+    text: "Cada respuesta correcta te da monedas. ¡Cuantas más aciertes, más ganás!" }
+]};
 window.LESSON = {{ lesson|tojson }};
 window.ACTS = {{ activities|tojson }};
 window.PREVIEW = {{ 'true' if preview else 'false' }};

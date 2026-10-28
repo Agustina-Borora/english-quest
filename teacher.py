@@ -370,7 +370,17 @@ def games():
         "(SELECT COUNT(*) FROM game_sessions s WHERE s.game_id=g.id AND s.ended_at IS NOT NULL AND s.players>0) AS played, "
         "(SELECT MAX(ended_at) FROM game_sessions s WHERE s.game_id=g.id AND s.players>0) AS last_played "
         "FROM quick_games g WHERE teacher_id=%s ORDER BY g.id DESC", (current_teacher_id(),))
-    return render_template("teacher/games.html", games=rows, page="games")
+    for g in rows:
+        g["courses"] = game_courses(g)
+    course = request.args.get("curso", "")
+    if course:
+        rows = [g for g in rows if not g["courses"] or course in g["courses"]]
+    return render_template("teacher/games.html", games=rows, courses=courses(), course=course, page="games")
+
+
+def game_courses(game):
+    """Cursos a los que está dirigido un juego (lista vacía = todos los cursos)."""
+    return [c for c in (game.get("course") or "").split(",") if c]
 
 
 @bp.route("/juegos/nuevo", methods=["POST"])
@@ -399,8 +409,11 @@ def game_edit(game_id):
             questions.append({"text": text, "emoji": str(q.get("emoji", ""))[:16], "options": opts, "correct": correct})
         if not questions:
             return jsonify({"ok": False, "error": "Agregá al menos una pregunta completa (texto, 2 opciones y la correcta)."}), 400
-        db.execute("UPDATE quick_games SET title=%s, emoji=%s, time_limit=%s WHERE id=%s",
-                   (title, str(data.get("emoji", "⚡"))[:16] or "⚡", safe_int(data.get("time"), 20, 5, 120), game_id))
+        chosen = [str(c).strip().replace(",", " ")[:30] for c in (data.get("courses") or []) if str(c).strip()]
+        course = ",".join(dict.fromkeys(chosen))[:120]
+        db.execute("UPDATE quick_games SET title=%s, emoji=%s, time_limit=%s, course=%s WHERE id=%s",
+                   (title, str(data.get("emoji", "⚡"))[:16] or "⚡", safe_int(data.get("time"), 20, 5, 120), course,
+                    game_id))
         save_questions(game_id, questions)
         return jsonify({"ok": True, "saved": len(questions)})
 
@@ -409,7 +422,11 @@ def game_edit(game_id):
            "correct": q["correct"]} for q in questions]
     topics_rows = db.query("SELECT t.id, t.title, t.emoji, (SELECT COUNT(*) FROM words w WHERE w.topic_id=t.id) AS n "
                            "FROM topics t WHERE teacher_id=%s ORDER BY id", (current_teacher_id(),))
-    return render_template("teacher/game_edit.html", game=game, questions=qs, topics=topics_rows, page="games")
+    all_courses = courses()
+    chosen = game_courses(game)
+    all_courses += [c for c in chosen if c not in all_courses]
+    return render_template("teacher/game_edit.html", game=game, questions=qs, topics=topics_rows,
+                           courses=all_courses, chosen=chosen, page="games")
 
 
 @bp.route("/juegos/<int:game_id>/generar", methods=["POST"])
@@ -444,8 +461,8 @@ def game_generate(game_id):
 @teacher_required
 def game_duplicate(game_id):
     g = own("quick_games", game_id)
-    new_id = db.execute("INSERT INTO quick_games (teacher_id, title, emoji, time_limit) VALUES (%s,%s,%s,%s)",
-                        (g["teacher_id"], (g["title"] + " (copia)")[:100], g["emoji"], g["time_limit"]))
+    new_id = db.execute("INSERT INTO quick_games (teacher_id, title, emoji, time_limit, course) VALUES (%s,%s,%s,%s,%s)",
+                        (g["teacher_id"], (g["title"] + " (copia)")[:100], g["emoji"], g["time_limit"], g["course"]))
     db.execute("INSERT INTO quick_questions (game_id, position, text, emoji, opt1, opt2, opt3, opt4, correct) "
                "SELECT %s, position, text, emoji, opt1, opt2, opt3, opt4, correct FROM quick_questions WHERE game_id=%s",
                (new_id, game_id))
@@ -482,8 +499,14 @@ def game_history(game_id):
     results = db.query(
         "SELECT gr.*, s.name, s.avatar, s.course FROM game_results gr JOIN students s ON s.id=gr.student_id "
         "JOIN game_sessions gs ON gs.id=gr.session_id WHERE gs.game_id=%s ORDER BY gr.rank_pos", (game_id,))
+    answers = db.query(
+        "SELECT ga.* FROM game_answers ga JOIN game_sessions gs ON gs.id=ga.session_id "
+        "WHERE gs.game_id=%s ORDER BY ga.qnum", (game_id,))
     for r in results:
         r["avatar_data"] = parse_avatar(r["avatar"])
+        mine = [a for a in answers if a["session_id"] == r["session_id"] and a["student_id"] == r["student_id"]]
+        r["has_detail"] = bool(mine)
+        r["mistakes"] = [a for a in mine if not a["is_correct"]]
     for s in sessions:
         s["results"] = [r for r in results if r["session_id"] == s["id"]]
     return render_template("teacher/game_history.html", game=game, sessions=sessions, page="games")

@@ -88,6 +88,7 @@ CREATE TABLE IF NOT EXISTS quick_games (
         title VARCHAR(100) NOT NULL,
         emoji VARCHAR(16) NOT NULL DEFAULT '⚡',
         time_limit INT NOT NULL DEFAULT 20,
+        course VARCHAR(120) NOT NULL DEFAULT '',
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (teacher_id) REFERENCES teachers(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -124,6 +125,20 @@ CREATE TABLE IF NOT EXISTS game_results (
         correct INT NOT NULL DEFAULT 0,
         total INT NOT NULL DEFAULT 0,
         rank_pos INT NOT NULL DEFAULT 0,
+        FOREIGN KEY (session_id) REFERENCES game_sessions(id) ON DELETE CASCADE,
+        FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS game_answers (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        session_id INT NOT NULL,
+        student_id INT NOT NULL,
+        qnum INT NOT NULL DEFAULT 0,
+        question VARCHAR(255) NOT NULL,
+        emoji VARCHAR(16) NOT NULL DEFAULT '',
+        chosen VARCHAR(120) NULL,
+        correct_answer VARCHAR(120) NOT NULL,
+        is_correct TINYINT NOT NULL DEFAULT 0,
         FOREIGN KEY (session_id) REFERENCES game_sessions(id) ON DELETE CASCADE,
         FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

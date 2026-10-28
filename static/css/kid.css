@@ -235,3 +235,8 @@
 .feedback .extra { font-size: 1.15rem; margin-top: 8px; }
 .rank-box { margin-top: 16px; background: rgba(255,255,255,.2); border-radius: 18px; padding: 12px; font-size: 1.3rem; font-weight: 600; }
 .phone { max-width: 520px; margin: 0 auto; }
+
+/* ¿Cómo se juega? */
+.howto-row { display: flex; justify-content: flex-end; margin: -4px 0 12px; }
+ul.howto { list-style: none; padding: 0; margin: 10px 0 16px; text-align: left; }
+ul.howto li { background: #f5f1ff; border-radius: 14px; padding: 10px 12px; margin-bottom: 8px; line-height: 1.4; }
