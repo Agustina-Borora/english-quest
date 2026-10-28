@@ -5,8 +5,8 @@ import math
 from flask import Blueprint, abort, jsonify, render_template, request, session
 
 import db
-from common import (ACTIVITIES, DEFAULT_AVATAR, SCENES, current_student_id, lesson_activities, lesson_words,
-                    parse_avatar, safe_int, student_required)
+from common import (ACTIVITIES, DEFAULT_AVATAR, SCENES, current_student_id, lesson_step_keys, lesson_steps,
+                    lesson_words, parse_avatar, safe_int, student_required)
 
 bp = Blueprint("student", __name__, url_prefix="/alumno")
 
@@ -42,7 +42,7 @@ def home():
     progress = passed_map(s["id"])
     lessons = []
     for l in my_lessons(s):
-        acts = lesson_activities(l)
+        acts = lesson_step_keys(l)
         done = sum(1 for a in acts if progress.get(l["id"], {}).get(a, {}).get("passed"))
         lessons.append({"id": l["id"], "title": l["title"], "description": l["description"], "scene": l["scene"],
                         "acts": len(acts), "done": done})
@@ -70,7 +70,7 @@ def lesson(lesson_id):
     if not l:
         abort(404)
     data = {"id": l["id"], "title": l["title"], "description": l["description"], "scene": l["scene"],
-            "activities": lesson_activities(l), "words": lesson_words(l["id"]),
+            "steps": lesson_steps(l), "words": lesson_words(l["id"]),
             "progress": passed_map(s["id"]).get(l["id"], {})}
     return render_template("student/lesson.html", lesson=data, activities=ACTIVITIES, preview=False,
                            avatar=s["avatar_data"], coins=s["coins"], name=s["name"])
@@ -82,13 +82,15 @@ def save_progress():
     s = me()
     data = request.get_json(silent=True) or {}
     lesson_id = safe_int(data.get("lesson_id"))
-    activity = data.get("activity")
-    if activity not in ACTIVITIES or not any(l["id"] == lesson_id for l in my_lessons(s)):
+    activity = str(data.get("activity") or "")[:20]
+    lesson = next((l for l in my_lessons(s) if l["id"] == lesson_id), None)
+    step = next((st for st in lesson_steps(lesson) if st["key"] == activity), None) if lesson else None
+    if not step:
         return jsonify({"ok": False}), 400
     total = safe_int(data.get("total"), 0, 0, 100)
     score = safe_int(data.get("score"), 0, 0, total)
     # Explorar y tarjetas se aprueban al terminarlas; el resto con el 60 % de aciertos
-    if activity in ("explore", "cards"):
+    if step["activity"] in ("explore", "cards"):
         passed = total > 0 and score >= total
     else:
         passed = total > 0 and score >= math.ceil(total * 0.6)

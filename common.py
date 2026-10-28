@@ -133,10 +133,67 @@ def public_base_url():
 
 def lesson_words(lesson_id):
     return db.query(
-        "SELECT w.word, w.translation, w.emoji, w.sentence FROM words w "
+        "SELECT w.topic_id, w.word, w.translation, w.emoji, w.sentence FROM words w "
         "JOIN lesson_topics lt ON lt.topic_id = w.topic_id WHERE lt.lesson_id=%s "
-        "ORDER BY w.topic_id, w.position, w.id", (lesson_id,))
+        "ORDER BY lt.position, w.topic_id, w.position, w.id", (lesson_id,))
 
 
 def lesson_activities(lesson):
     return [a for a in lesson["activities"].split(",") if a in ACTIVITIES]
+
+
+def lesson_topic_rows(lesson_id):
+    """Los temas de una lección, en el orden que eligió la profe, con su escenario y actividades."""
+    return db.query("SELECT lt.topic_id, lt.position, lt.scene, lt.activities, t.title, t.emoji FROM lesson_topics lt "
+                    "JOIN topics t ON t.id=lt.topic_id WHERE lt.lesson_id=%s ORDER BY lt.position, t.id",
+                    (lesson_id,))
+
+
+def lesson_steps(lesson, topic_rows=None):
+    """
+    Los pasos (actividades) de una lección, en orden.
+    - Todos los temas juntos: un paso por actividad, con todas las palabras mezcladas (clave = actividad).
+    - Cada tema por separado: los pasos de cada tema, con su escenario (clave = "idTema-actividad").
+    """
+    if not lesson.get("by_topic"):
+        return [{"key": a, "activity": a, "topic_id": None, "scene": lesson["scene"]} for a in lesson_activities(lesson)]
+    rows = topic_rows if topic_rows is not None else lesson_topic_rows(lesson["id"])
+    steps = []
+    for t in rows:
+        for a in t["activities"].split(","):
+            if a in ACTIVITIES:
+                steps.append({"key": f"{t['topic_id']}-{a}", "activity": a, "topic_id": t["topic_id"],
+                              "topic": t["title"], "topic_emoji": t["emoji"], "scene": t["scene"] or lesson["scene"]})
+    return steps
+
+
+def lesson_step_keys(lesson):
+    return [s["key"] for s in lesson_steps(lesson)]
+
+
+# ------------------------------------------------------------ escenarios propios (con imagen)
+def custom_scenes(teacher_id):
+    """Escenarios que creó la profe con sus imágenes. La clave es "c" + id (ej: c7)."""
+    if not teacher_id:
+        return {}
+    rows = db.query("SELECT id, name, slots FROM custom_scenes WHERE teacher_id=%s ORDER BY id", (teacher_id,))
+    return {f"c{r['id']}": {"name": r["name"], "es": r["name"], "custom": True,
+                            "img": url_for("auth.scene_image", scene_id=r["id"]), "slots": parse_slots(r["slots"])}
+            for r in rows}
+
+
+def all_scenes(teacher_id):
+    return {**SCENES, **custom_scenes(teacher_id)}
+
+
+def parse_slots(raw):
+    """Lugares (en %) donde aparecen las palabras sobre la imagen: [[x, y], ...]."""
+    try:
+        data = json.loads(raw) if raw else []
+    except (TypeError, ValueError):
+        return []
+    out = []
+    for p in data if isinstance(data, list) else []:
+        if isinstance(p, (list, tuple)) and len(p) == 2:
+            out.append([safe_int(p[0], 50, 3, 97), safe_int(p[1], 50, 5, 95)])
+    return out[:12]

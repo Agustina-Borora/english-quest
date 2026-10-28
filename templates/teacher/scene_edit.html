@@ -1,0 +1,101 @@
+{% extends "teacher/layout.html" %}
+{% block title %}{{ 'Editar' if scene else 'Nuevo' }} escenario · Profe{% endblock %}
+{% block main %}
+<div class="page-head">
+  <div><h1>{{ '✏️ Editar escenario' if scene else '🖼️ Nuevo escenario' }}</h1><p>Elegí una imagen de tu compu y, si querés, tocá sobre ella para marcar dónde aparecen las palabras.</p></div>
+  <a class="btn light" href="{{ url_for('teacher.scenes') }}">⬅ Escenarios</a>
+</div>
+
+<form method="post" id="scene-form">
+  <div class="card" style="margin-bottom:18px">
+    <h2>1️⃣ Nombre e imagen</h2>
+    <div class="form-row">
+      <div><label class="lbl">Nombre del escenario</label><input class="field" name="name" maxlength="60" value="{{ scene.name if scene else '' }}" placeholder="ej: Nuestra aula, La granja, Mi cocina" required></div>
+      <div><label class="lbl">{{ 'Cambiar la imagen (opcional)' if scene else 'Imagen' }}</label>
+        <label class="btn blue" style="display:inline-flex;cursor:pointer">📂 Elegir imagen de mi compu<input type="file" id="file" accept="image/*" hidden></label>
+        <small class="muted" id="file-info" style="display:block;margin-top:6px">JPG, PNG o WEBP. Si es muy grande la achico sola.</small></div>
+    </div>
+    <input type="hidden" name="image_data" id="image_data">
+  </div>
+
+  <div class="card" style="margin-bottom:18px">
+    <h2>2️⃣ ¿Dónde aparecen las palabras? <small class="muted" style="font-weight:400">· opcional</small></h2>
+    <p class="muted" style="margin-top:0">Tocá la imagen para poner un lugar (hasta 12). En la actividad <b>Explorar</b>, cada palabra aparece en uno de estos lugares, en orden. Tocá un número para sacarlo. Si no marcás ninguno, se ubican solas.</p>
+    <div class="scene-editor" id="editor">
+      {% if scene %}<img class="scene-bg" id="img" src="{{ url_for('auth.scene_image', scene_id=scene.id) }}" alt="">{% else %}<img class="scene-bg" id="img" alt="" hidden><div class="ph" id="ph">📂 Primero elegí una imagen</div>{% endif %}
+    </div>
+    <div class="actions" style="margin-top:10px">
+      <button type="button" class="btn small light" id="undo">↩ Sacar el último</button>
+      <button type="button" class="btn small light" id="clear">🧹 Sacar todos</button>
+      <span class="muted" id="count"></span>
+    </div>
+    <input type="hidden" name="slots" id="slots">
+  </div>
+
+  <div class="sticky-bar">
+    <button class="btn green big">💾 Guardar escenario</button>
+    <span class="muted">Después lo elegís en <b>Lecciones</b>, para toda la lección o para un tema.</span>
+  </div>
+</form>
+{% endblock %}
+{% block scripts %}
+<script>
+let slots = {{ slots|tojson }};
+const MAX = 12;
+const editor = $("#editor"), img = $("#img");
+
+function drawSlots() {
+  $$("#editor .pin").forEach(p => p.remove());
+  slots.forEach(([x, y], i) => editor.insertAdjacentHTML("beforeend",
+    `<button type="button" class="pin" data-i="${i}" style="left:${x}%;top:${y}%" title="Sacar">${i + 1}</button>`));
+  $$("#editor .pin").forEach(p => p.onclick = e => { e.stopPropagation(); slots.splice(+p.dataset.i, 1); drawSlots(); });
+  $("#slots").value = JSON.stringify(slots);
+  $("#count").textContent = slots.length ? `${slots.length}/${MAX} lugares` : "Sin lugares marcados (se ubican solas)";
+}
+
+editor.onclick = e => {
+  if (img.hidden) return toast("Primero elegí una imagen 📂");
+  if (slots.length >= MAX) return toast(`Ya marcaste los ${MAX} lugares`);
+  const r = editor.getBoundingClientRect();
+  const x = Math.round((e.clientX - r.left) / r.width * 100), y = Math.round((e.clientY - r.top) / r.height * 100);
+  slots.push([Math.min(97, Math.max(3, x)), Math.min(95, Math.max(5, y))]);
+  drawSlots();
+};
+$("#undo").onclick = () => { slots.pop(); drawSlots(); };
+$("#clear").onclick = () => { slots = []; drawSlots(); };
+
+// La imagen se achica en la compu antes de subirla (máx. 1600 px), así pesa poco y carga rápido en los celus
+$("#file").onchange = e => {
+  const f = e.target.files[0];
+  if (!f) return;
+  if (!f.type.startsWith("image/")) return toast("Ese archivo no es una imagen 😕");
+  const reader = new FileReader();
+  reader.onload = () => {
+    const pic = new Image();
+    pic.onload = () => {
+      const scale = Math.min(1, 1600 / Math.max(pic.width, pic.height));
+      const c = document.createElement("canvas");
+      c.width = Math.round(pic.width * scale); c.height = Math.round(pic.height * scale);
+      const ctx = c.getContext("2d");
+      ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, c.width, c.height);
+      ctx.drawImage(pic, 0, 0, c.width, c.height);
+      const data = c.toDataURL("image/jpeg", 0.85);
+      $("#image_data").value = data;
+      img.src = data; img.hidden = false;
+      const ph = $("#ph"); if (ph) ph.remove();
+      $("#file-info").textContent = `✔ ${f.name} (${c.width}×${c.height})`;
+      const name = $("input[name=name]");
+      if (!name.value) name.value = f.name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").slice(0, 60);
+    };
+    pic.onerror = () => toast("No pude abrir esa imagen 😕");
+    pic.src = reader.result;
+  };
+  reader.readAsDataURL(f);
+};
+
+$("#scene-form").onsubmit = e => {
+  if (img.hidden) { e.preventDefault(); toast("Elegí una imagen de tu compu 📂"); }
+};
+drawSlots();
+</script>
+{% endblock %}

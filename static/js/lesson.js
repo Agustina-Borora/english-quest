@@ -1,16 +1,24 @@
-// Lección: actividades en el orden que eligió la profe
+// Lección: actividades en el orden que eligió la profe.
+// Cada paso (STEPS) es una actividad; si la lección va "tema por tema", cada paso usa solo
+// las palabras de su tema y el escenario que la profe eligió para ese tema.
 const LS = window.LESSON;
-const WORDS = LS.words;
+const STEPS = LS.steps;
+const ALL_WORDS = LS.words;
+let WORDS = ALL_WORDS;
+let SCENE = LS.scene;
 let progress = LS.progress || {};
 let current = 0;
 let cleanup = null;   // para sacar eventos de teclado al cambiar de actividad
 
 $("#lesson-building").innerHTML = buildingSVG(LS.scene);
 
+const stepName = s => `${s.topic_emoji ? s.topic_emoji + " " : ""}${ACTS[s.activity].emoji} ${ACTS[s.activity].name}`;
+
 function stepper() {
-  $("#stepper").innerHTML = LS.activities.map((a, i) => {
-    const ok = progress[a] && progress[a].passed;
-    return `<button class="${i === current ? "now" : ""}" data-i="${i}"><span class="st">${ok ? "⭐" : "☆"}</span>${ACTS[a].emoji} ${ACTS[a].name}</button>`;
+  $("#stepper").innerHTML = STEPS.map((s, i) => {
+    const ok = progress[s.key] && progress[s.key].passed;
+    const newTopic = s.topic_id && (i === 0 || STEPS[i - 1].topic_id !== s.topic_id);
+    return `${newTopic ? `<span class="topic-tag">${esc(s.topic_emoji)} ${esc(s.topic)}</span>` : ""}<button class="${i === current ? "now" : ""}" data-i="${i}"><span class="st">${ok ? "⭐" : "☆"}</span>${ACTS[s.activity].emoji} ${ACTS[s.activity].name}</button>`;
   }).join("");
   $$("#stepper button").forEach(b => b.onclick = () => openActivity(+b.dataset.i));
 }
@@ -62,40 +70,44 @@ function maybeHowto(a) {
 }
 // Si el tutorial de la pantalla se va a mostrar, la explicación espera a que termine
 let tourPending = !!(window.TOUR && window.tourSeen) && !window.tourSeen(window.TOUR.key);
-if (window.TOUR) window.TOUR.onEnd = () => { tourPending = false; if (WORDS.length) maybeHowto(LS.activities[current]); };
+if (window.TOUR) window.TOUR.onEnd = () => { tourPending = false; if (WORDS.length) maybeHowto(STEPS[current].activity); };
 const howtoBtn = $("#howto-btn");
-if (howtoBtn) howtoBtn.onclick = () => { if (WORDS.length) howto(LS.activities[current]); };
+if (howtoBtn) howtoBtn.onclick = () => { if (WORDS.length) howto(STEPS[current].activity); };
 
 function openActivity(i) {
   if (cleanup) { cleanup(); cleanup = null; }
   current = i;
+  const step = STEPS[i];
+  WORDS = step.topic_id ? ALL_WORDS.filter(w => w.topic_id === step.topic_id) : ALL_WORDS;
+  SCENE = step.scene || LS.scene;
   stepper();
   $("#below").innerHTML = "";
   if (!WORDS.length) {
-    $("#stage").innerHTML = `<div class="challenge"><div class="prompt"><span class="p-emoji">📭</span><p class="p-label">Esta lección todavía no tiene palabras.</p></div></div>`;
+    $("#stage").innerHTML = `<div class="challenge"><div class="prompt"><span class="p-emoji">📭</span><p class="p-label">${step.topic_id ? "Este tema" : "Esta lección"} todavía no tiene palabras.</p></div></div>`;
     return;
   }
-  const a = LS.activities[i];
+  const a = step.activity;
   ({ explore, cards, read, write, quiz })[a]();
   if (!tourPending) maybeHowto(a);
 }
 
 // ------------------------------------------------------------ resultado y guardado
 async function finish(activity, score, total) {
+  const key = STEPS[current].key;
   const needed = (activity === "explore" || activity === "cards") ? total : Math.ceil(total * 0.6);
-  let passed = score >= needed, coinsWon = score * 5, firstPass = passed && !(progress[activity] && progress[activity].passed);
+  let passed = score >= needed, coinsWon = score * 5, firstPass = passed && !(progress[key] && progress[key].passed);
   if (!window.PREVIEW) {
     try {
-      const r = await postJSON(window.SAVE_URL, { lesson_id: LS.id, activity, score, total });
+      const r = await postJSON(window.SAVE_URL, { lesson_id: LS.id, activity: key, score, total });
       passed = r.passed; coinsWon = r.coins_won; firstPass = r.first_pass; progress = r.progress;
       $("#coins").textContent = `🪙 ${r.coins}`;
     } catch (e) { toast("No se pudo guardar 😕"); }
   } else if (passed) {
-    progress[activity] = { passed: true, best: score, total };
+    progress[key] = { passed: true, best: score, total };
   }
   stepper();
-  const isLast = current >= LS.activities.length - 1;
-  const allDone = LS.activities.every(a => progress[a] && progress[a].passed);
+  const isLast = current >= STEPS.length - 1;
+  const allDone = STEPS.every(s => progress[s.key] && progress[s.key].passed);
   const scoreLine = (activity === "explore" || activity === "cards") ? "" :
     `<p style="font-size:1.2rem">Acertaste <b>${score}</b> de <b>${total}</b>${passed ? "" : ` · necesitás ${needed}`}</p>`;
   modal(`
@@ -106,7 +118,7 @@ async function finish(activity, score, total) {
     <p style="font-size:1.2rem">🪙 +${coinsWon} monedas</p>
     <div class="row">
       ${passed ? "" : `<button class="btn yellow" data-a="retry">🔄 Reintentar</button>`}
-      ${!isLast ? `<button class="btn green" data-a="next">Siguiente: ${ACTS[LS.activities[current + 1]].emoji} ${ACTS[LS.activities[current + 1]].name} ➜</button>` : ""}
+      ${!isLast ? `<button class="btn green" data-a="next">Siguiente: ${esc(stepName(STEPS[current + 1]))} ➜</button>` : ""}
       <a class="btn ${isLast ? "green" : "light"}" href="${window.MAP_URL}">🗺️ Volver al mapa</a>
     </div>`, box => {
     const r = $("[data-a=retry]", box); if (r) r.onclick = () => { closeModal(); openActivity(current); };
@@ -134,14 +146,15 @@ function others(w, n, pool = WORDS) { return shuffle(pool.filter(x => x !== w)).
 
 // ------------------------------------------------------------ 1) Explorar
 function explore() {
-  const PAGE = SCENE_SLOTS.length;
+  const SLOTS = sceneSlots(SCENE);
+  const PAGE = SLOTS.length;
   const pages = Math.ceil(WORDS.length / PAGE);
   const seen = new Set();
   let page = 0;
   const draw = () => {
     const items = WORDS.slice(page * PAGE, page * PAGE + PAGE);
-    $("#stage").innerHTML = `<div class="scene">${sceneSVG(LS.scene)}
-      ${items.map((w, i) => `<button class="obj ${seen.has(w.word) ? "seen" : ""}" data-w="${page * PAGE + i}" style="left:${SCENE_SLOTS[i][0]}%;top:${SCENE_SLOTS[i][1]}%;animation-delay:${-i * .4}s">${w.emoji || "⭐"}</button>`).join("")}
+    $("#stage").innerHTML = `<div class="scene ${CUSTOM[SCENE] ? "custom" : ""}">${sceneSVG(SCENE)}
+      ${items.map((w, i) => `<button class="obj ${seen.has(w.word) ? "seen" : ""}" data-w="${page * PAGE + i}" style="left:${SLOTS[i][0]}%;top:${SLOTS[i][1]}%;animation-delay:${-i * .4}s">${w.emoji || "⭐"}</button>`).join("")}
       <div class="guide">${avatarSVG(window.ME)}</div>
       <div class="say-bubble">Tap everything! 👆 <small>Tocá todo</small></div></div>`;
     $("#below").innerHTML = `<div class="bar-row"><span>🔍 Descubiertas: ${seen.size}/${WORDS.length}</span>
@@ -177,7 +190,7 @@ function cards() {
   let i = 0;
   const draw = () => {
     const w = WORDS[i];
-    $("#stage").innerHTML = `<div class="flip-area">${sceneSVG(LS.scene)}
+    $("#stage").innerHTML = `<div class="flip-area">${sceneSVG(SCENE)}
       <div class="flip" id="flip"><div class="in">
         <div class="face front"><span class="big-e">${w.emoji || "⭐"}</span><div class="w">${esc(w.word)}</div><div class="hint">👆 Tocá para dar vuelta</div></div>
         <div class="face back"><div class="w">${esc(w.translation)}</div>${w.sentence ? `<div class="s">${esc(w.sentence)}</div>` : ""}<div class="hint" style="color:#fff">👆 Tocá para volver</div></div>
@@ -352,5 +365,5 @@ function quiz() {
 }
 
 // Empieza por la primera actividad sin aprobar
-const firstOpen = LS.activities.findIndex(a => !(progress[a] && progress[a].passed));
+const firstOpen = STEPS.findIndex(s => !(progress[s.key] && progress[s.key].passed));
 openActivity(firstOpen >= 0 ? firstOpen : 0);

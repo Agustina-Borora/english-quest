@@ -7,6 +7,7 @@
     <div class="brand">⭐ English Quest</div>
     <a class="nav {{ 'on' if page=='home' }}" data-tour="home" href="{{ url_for('teacher.home') }}"><span class="i">🏠</span>Inicio</a>
     <a class="nav {{ 'on' if page=='lessons' }}" data-tour="lessons" href="{{ url_for('teacher.lessons') }}"><span class="i">🗺️</span>Lecciones</a>
+    <a class="nav {{ 'on' if page=='scenes' }}" data-tour="scenes" href="{{ url_for('teacher.scenes') }}"><span class="i">🖼️</span>Escenarios</a>
     <a class="nav {{ 'on' if page=='topics' }}" data-tour="topics" href="{{ url_for('teacher.topics') }}"><span class="i">📚</span>Temas</a>
     <a class="nav {{ 'on' if page=='games' }}" data-tour="games" href="{{ url_for('teacher.games') }}"><span class="i">⚡</span>Juegos rápidos</a>
     <a class="nav {{ 'on' if page=='students' }}" data-tour="students" href="{{ url_for('teacher.students') }}"><span class="i">🧒</span>Alumnos</a>
@@ -34,6 +35,8 @@ window.TOUR = { key: "profe", steps: [
     text: "<b>Empezá por acá.</b> Un tema es un grupo de palabras (por ejemplo <i>Colors</i> o <i>Animals</i>), cada una con su dibujo, traducción y una oración de ejemplo." },
   { el: "[data-tour=lessons]", title: "🗺️ Lecciones",
     text: "Una lección junta uno o más temas en un escenario (casa, escuela, parque…). Elegís las actividades: <b>Explorar, Tarjetas, Leer y escuchar, Escribir</b> y el <b>Desafío final</b>. Cuando la publicás, aparece como un lugar en el mapa de tus alumnos." },
+  { el: "[data-tour=scenes]", title: "🖼️ Escenarios",
+    text: "Además de la casa, la escuela o el parque, podés <b>crear tus propios escenarios con imágenes de tu compu</b> y marcar dónde aparece cada palabra." },
   { el: "[data-tour=students]", title: "🧒 Alumnos",
     text: "Cargá a tus alumnos. Cada uno recibe un <b>usuario</b> y un <b>PIN de 4 números</b> para entrar. Pasáselos para que puedan jugar." },
   { el: "[data-tour=games]", title: "⚡ Juegos rápidos",

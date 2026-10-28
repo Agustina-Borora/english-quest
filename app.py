@@ -20,19 +20,20 @@ En Railway arranca solo con el Procfile (gunicorn).
 import sys
 import time
 
-from flask import Flask
+from flask import Flask, session
 from pymysql.err import OperationalError
 
 import config
 import db
 import live  # noqa: F401  (registra los eventos de la clase rápida)
 from auth import bp as auth_bp
-from common import ACTIVITIES, SCENES, public_base_url, socketio
+from common import ACTIVITIES, SCENES, custom_scenes, public_base_url, socketio
 from student import bp as student_bp
 from teacher import bp as teacher_bp
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = config.SECRET_KEY
+app.config["MAX_CONTENT_LENGTH"] = 8 * 1024 * 1024  # imágenes de escenarios: hasta 8 MB por envío
 app.register_blueprint(auth_bp)
 app.register_blueprint(teacher_bp)
 app.register_blueprint(student_bp)
@@ -41,7 +42,9 @@ socketio.init_app(app)
 
 @app.context_processor
 def globals_for_templates():
-    return {"ACTIVITIES": ACTIVITIES, "SCENES": SCENES}
+    # Los escenarios propios de la profe (para ella y para sus alumnos) se agregan a los de siempre
+    custom = custom_scenes(session.get("teacher_id")) if session.get("role") else {}
+    return {"ACTIVITIES": ACTIVITIES, "SCENES": {**SCENES, **custom}, "CUSTOM_SCENES": custom}
 
 
 def prepare_database(tries=1):

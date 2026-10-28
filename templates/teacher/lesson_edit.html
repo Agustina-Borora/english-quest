@@ -29,9 +29,11 @@
     <div class="scene-pick">
       {% for key, sc in SCENES.items() %}
       <label><input type="radio" name="scene" value="{{ key }}" {{ 'checked' if (lesson and lesson.scene==key) or (not lesson and loop.first) }}>
-        <div class="box"><div class="pv" data-scene="{{ key }}"></div><div class="nm">{{ sc.es }} · <span class="muted">{{ sc.name }}</span></div></div></label>
+        <div class="box"><div class="pv" data-scene="{{ key }}"></div><div class="nm">{% if sc.custom %}⭐ {{ sc.name }}{% else %}{{ sc.es }} · <span class="muted">{{ sc.name }}</span>{% endif %}</div></div></label>
       {% endfor %}
+      <a class="tile add" href="{{ url_for('teacher.scene_edit') }}" target="_blank" style="min-height:120px;text-align:center;padding:10px"><span class="big">🖼️</span>Crear uno con una imagen de mi compu</a>
     </div>
+    <p class="muted" style="margin:10px 0 0">¿Creaste uno nuevo en otra pestaña? <a href="" onclick="location.reload();return false">Recargá esta página</a> para verlo (guardá antes lo que cambiaste).</p>
   </div>
 
   <div class="card" style="margin-bottom:18px">
@@ -47,8 +49,16 @@
 
   <div class="card" style="margin-bottom:18px">
     <h2>4️⃣ Cómo se presenta <small class="muted" style="font-weight:400">· tildá las actividades y ordenalas con las flechas</small></h2>
-    <ul class="act-list" id="acts"></ul>
+    <div class="mode-pick">
+      <label><input type="radio" name="mode" value="mixed" {{ 'checked' if not (lesson and lesson.by_topic) }}>
+        <span class="em">🧺</span><span><b>Todos los temas juntos</b><small>Las palabras de todos los temas se mezclan en las mismas actividades.</small></span></label>
+      <label><input type="radio" name="mode" value="by_topic" {{ 'checked' if lesson and lesson.by_topic }}>
+        <span class="em">📚</span><span><b>Cada tema por separado</b><small>Elegís, para cada tema, su escenario, sus actividades y el orden de los temas.</small></span></label>
+    </div>
+    <div id="mixed-box"><ul class="act-list" id="acts"></ul></div>
+    <div id="topic-box" hidden></div>
     <input type="hidden" name="activities" id="activities">
+    <input type="hidden" name="plan" id="plan">
   </div>
 
   <div class="sticky-bar">
@@ -62,34 +72,112 @@
 <script>
 $$(".pv[data-scene]").forEach(p => p.innerHTML = sceneSVG(p.dataset.scene));
 const ACTS = {{ activities|tojson }};
+const SCENE_LIST = {{ SCENES.items()|list|tojson }};  // [[clave, escenario], ...] en orden: primero los dibujados
+const TOPICS = { {% for t in topics %}{{ t.id }}: { title: {{ t.title|tojson }}, emoji: {{ t.emoji|tojson }}, n: {{ t.n }} },{% endfor %} };
 const chosen = {{ acts|tojson }};
-let order = [...chosen, ...Object.keys(ACTS).filter(a => !chosen.includes(a))];
-let on = new Set(chosen);
+const savedPlan = {{ plan|tojson }};
 
-function render() {
+// Una lista de actividades que se tildan y se ordenan con flechas
+const makeList = list => ({ order: [...list, ...Object.keys(ACTS).filter(a => !list.includes(a))], on: new Set(list) });
+const picked = st => st.order.filter(a => st.on.has(a));
+
+function actEditor(el, st) {
   let n = 0;
-  $("#acts").innerHTML = order.map((id, i) => {
-    const a = ACTS[id], active = on.has(id);
+  el.innerHTML = st.order.map((id, i) => {
+    const a = ACTS[id], active = st.on.has(id);
     return `<li class="${active ? "on" : "off"}">
       <span class="num">${active ? ++n : "–"}</span>
       <input type="checkbox" data-id="${id}" ${active ? "checked" : ""}>
       <span class="em">${a.emoji}</span>
       <span class="tx"><b>${a.name}</b><small>${a.desc}</small></span>
       <button type="button" class="mv" data-up="${i}" ${i === 0 ? "disabled" : ""}>▲</button>
-      <button type="button" class="mv" data-down="${i}" ${i === order.length - 1 ? "disabled" : ""}>▼</button>
+      <button type="button" class="mv" data-down="${i}" ${i === st.order.length - 1 ? "disabled" : ""}>▼</button>
     </li>`;
   }).join("");
-  $$("#acts input[type=checkbox]").forEach(c => c.onchange = () => { c.checked ? on.add(c.dataset.id) : on.delete(c.dataset.id); render(); });
-  $$("#acts [data-up]").forEach(b => b.onclick = () => { const i = +b.dataset.up; [order[i - 1], order[i]] = [order[i], order[i - 1]]; render(); });
-  $$("#acts [data-down]").forEach(b => b.onclick = () => { const i = +b.dataset.down; [order[i + 1], order[i]] = [order[i], order[i + 1]]; render(); });
-  const list = order.filter(a => on.has(a));
-  $("#activities").value = list.join(",");
-  $("#summary").textContent = list.length ? "Orden: " + list.map(a => ACTS[a].emoji + " " + ACTS[a].name).join(" → ") : "⚠️ Elegí al menos una actividad";
+  const again = () => { actEditor(el, st); sync(); };
+  $$("input[type=checkbox]", el).forEach(c => c.onchange = () => { c.checked ? st.on.add(c.dataset.id) : st.on.delete(c.dataset.id); again(); });
+  $$("[data-up]", el).forEach(b => b.onclick = () => { const i = +b.dataset.up; [st.order[i - 1], st.order[i]] = [st.order[i], st.order[i - 1]]; again(); });
+  $$("[data-down]", el).forEach(b => b.onclick = () => { const i = +b.dataset.down; [st.order[i + 1], st.order[i]] = [st.order[i], st.order[i + 1]]; again(); });
 }
-render();
+
+// --- Todos los temas juntos
+const mixed = makeList(chosen);
+
+// --- Cada tema por separado: orden de los temas y, para cada uno, escenario y actividades
+const topicState = {};
+savedPlan.forEach(p => { topicState[p.topic_id] = { ...makeList(p.activities.length ? p.activities : chosen), scene: p.scene || "" }; });
+let topicOrder = savedPlan.map(p => p.topic_id);
+const checkedTopics = () => $$("input[name=topics]:checked").map(c => +c.value);
+const visibleTopics = () => {
+  const ch = checkedTopics();
+  ch.forEach(id => { if (!topicOrder.includes(id)) topicOrder.push(id); });
+  return topicOrder.filter(id => ch.includes(id));
+};
+const byTopic = () => $("input[name=mode]:checked").value === "by_topic";
+
+function renderTopics() {
+  const ids = visibleTopics();
+  const box = $("#topic-box");
+  if (!ids.length) { box.innerHTML = `<div class="empty">Tildá arriba los temas de la lección 📚</div>`; sync(); return; }
+  const sceneOpts = sel => `<option value="">Igual que la lección</option>` + SCENE_LIST.map(([k, s]) =>
+    `<option value="${k}" ${k === sel ? "selected" : ""}>${s.custom ? "⭐ " + esc(s.name) : esc(s.es)}</option>`).join("");
+  box.innerHTML = ids.map((id, i) => {
+    const t = TOPICS[id], st = topicState[id] || (topicState[id] = { ...makeList(picked(mixed).length ? picked(mixed) : chosen), scene: "" });
+    return `<div class="topic-plan" data-t="${id}">
+      <div class="tp-head">
+        <span class="em">${esc(t.emoji)}</span><b>${i + 1}. ${esc(t.title)} <small class="muted" style="font-weight:400">· ${t.n} palabras</small></b>
+        <span class="tp-scene" data-pv></span>
+        <select class="field" data-scene title="Escenario de este tema">${sceneOpts(st.scene)}</select>
+        <button type="button" class="btn small light" data-tup ${i === 0 ? "disabled" : ""} title="Subir el tema">▲</button>
+        <button type="button" class="btn small light" data-tdown ${i === ids.length - 1 ? "disabled" : ""} title="Bajar el tema">▼</button>
+      </div>
+      <ul class="act-list" data-acts></ul>
+    </div>`;
+  }).join("");
+  $$(".topic-plan", box).forEach(card => {
+    const id = +card.dataset.t, st = topicState[id];
+    const pv = () => { $("[data-pv]", card).innerHTML = sceneSVG(st.scene || lessonScene()); };
+    pv();
+    $("[data-scene]", card).onchange = e => { st.scene = e.target.value; pv(); sync(); };
+    const move = d => { const a = topicOrder.indexOf(id), ids2 = visibleTopics(), b = topicOrder.indexOf(ids2[ids2.indexOf(id) + d]);
+      [topicOrder[a], topicOrder[b]] = [topicOrder[b], topicOrder[a]]; renderTopics(); };
+    $("[data-tup]", card).onclick = () => move(-1);
+    $("[data-tdown]", card).onclick = () => move(1);
+    actEditor($("[data-acts]", card), st);
+  });
+  sync();
+}
+const lessonScene = () => ($("input[name=scene]:checked") || {}).value || "house";
+
+function sync() {
+  $("#mixed-box").hidden = byTopic();
+  $("#topic-box").hidden = !byTopic();
+  $("#activities").value = picked(mixed).join(",");
+  const ids = visibleTopics();
+  $("#plan").value = JSON.stringify(ids.map(id => ({ topic_id: id, scene: topicState[id] ? topicState[id].scene : "",
+    activities: topicState[id] ? picked(topicState[id]) : [] })));
+  if (byTopic()) {
+    const empty = ids.filter(id => topicState[id] && !picked(topicState[id]).length);
+    $("#summary").textContent = !ids.length ? "⚠️ Elegí al menos un tema" : empty.length
+      ? `⚠️ ${TOPICS[empty[0]].title} no tiene actividades`
+      : "Orden: " + ids.map(id => `${TOPICS[id].emoji} ${TOPICS[id].title} (${picked(topicState[id]).map(a => ACTS[a].emoji).join("")})`).join(" → ");
+  } else {
+    const list = picked(mixed);
+    $("#summary").textContent = list.length ? "Orden: " + list.map(a => ACTS[a].emoji + " " + ACTS[a].name).join(" → ") : "⚠️ Elegí al menos una actividad";
+  }
+}
+
+actEditor($("#acts"), mixed);
+renderTopics();
+$$("input[name=mode]").forEach(r => r.onchange = renderTopics);
+$$("input[name=topics]").forEach(c => c.addEventListener("change", renderTopics));
+$$("input[name=scene]").forEach(r => r.addEventListener("change", renderTopics));
+
 $("#lesson-form").onsubmit = e => {
-  if (!$$("input[name=topics]:checked").length) { e.preventDefault(); toast("Elegí al menos un tema 📚"); }
-  else if (!$("#activities").value) { e.preventDefault(); toast("Elegí al menos una actividad"); }
+  const ids = visibleTopics();
+  if (!ids.length) { e.preventDefault(); toast("Elegí al menos un tema 📚"); }
+  else if (byTopic() && ids.some(id => !picked(topicState[id]).length)) { e.preventDefault(); toast("Cada tema necesita al menos una actividad"); }
+  else if (!byTopic() && !$("#activities").value) { e.preventDefault(); toast("Elegí al menos una actividad"); }
 };
 </script>
 {% endblock %}

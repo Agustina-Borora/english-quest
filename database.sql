@@ -53,6 +53,7 @@ CREATE TABLE IF NOT EXISTS lessons (
         description VARCHAR(255) NOT NULL DEFAULT '',
         scene VARCHAR(20) NOT NULL DEFAULT 'house',
         activities VARCHAR(120) NOT NULL DEFAULT 'explore,read,write,quiz',
+        by_topic TINYINT(1) NOT NULL DEFAULT 0,
         course VARCHAR(30) NOT NULL DEFAULT '',
         published TINYINT(1) NOT NULL DEFAULT 1,
         position INT NOT NULL DEFAULT 0,
@@ -60,9 +61,23 @@ CREATE TABLE IF NOT EXISTS lessons (
         FOREIGN KEY (teacher_id) REFERENCES teachers(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS custom_scenes (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        teacher_id INT NOT NULL,
+        name VARCHAR(60) NOT NULL,
+        image MEDIUMBLOB NOT NULL,
+        mime VARCHAR(30) NOT NULL DEFAULT 'image/jpeg',
+        slots TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (teacher_id) REFERENCES teachers(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS lesson_topics (
         lesson_id INT NOT NULL,
         topic_id INT NOT NULL,
+        position INT NOT NULL DEFAULT 0,
+        scene VARCHAR(20) NOT NULL DEFAULT '',
+        activities VARCHAR(120) NOT NULL DEFAULT '',
         PRIMARY KEY (lesson_id, topic_id),
         FOREIGN KEY (lesson_id) REFERENCES lessons(id) ON DELETE CASCADE,
         FOREIGN KEY (topic_id) REFERENCES topics(id) ON DELETE CASCADE

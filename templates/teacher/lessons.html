@@ -3,21 +3,32 @@
 {% block main %}
 <div class="page-head">
   <div><h1>🗺️ Lecciones</h1><p>Cada lección aparece como un lugar en el mapa de tus alumnos. Elegís el escenario, los temas y cómo se presentan (las actividades y su orden).</p></div>
-  <a class="btn" href="{{ url_for('teacher.lesson_edit') }}">➕ Nueva lección</a>
+  <div class="actions">
+    <a class="btn light" href="{{ url_for('teacher.scenes') }}">🖼️ Mis escenarios</a>
+    <a class="btn" href="{{ url_for('teacher.lesson_edit') }}">➕ Nueva lección</a>
+  </div>
 </div>
 
 <div class="grid3">
   {% for l in lessons %}
   <div class="tile {{ 'off' if not l.published }}">
     <div class="thumb" data-scene="{{ l.scene }}">
-      <span class="label">{{ loop.index }}. {{ SCENES[l.scene].es }}</span>
+      <span class="label">{{ loop.index }}. {{ (SCENES.get(l.scene) or SCENES.house).es }}</span>
       <span class="status">{% if l.published %}<span class="chip green">👁 Visible</span>{% else %}<span class="chip gray">🙈 Oculta</span>{% endif %}</span>
     </div>
     <div class="body">
       <h3 style="margin:0 0 4px">{{ l.title }}</h3>
       <p class="muted" style="margin:0 0 8px">{{ l.description }}</p>
+      {% if l.by_topic %}
+      <p style="margin:0 0 4px;font-weight:600">📚 Cada tema por separado</p>
+      {% for t in l.plan %}
+      <div style="margin-top:4px"><span class="chip">{{ t.emoji }} {{ t.title }}{% if t.scene %} · 🖼️ {{ (SCENES.get(t.scene) or {}).es }}{% endif %}</span>
+        {% for a in t.acts %}<span class="chip yellow" title="{{ a.desc }}">{{ a.emoji }}</span>{% endfor %}</div>
+      {% endfor %}
+      {% else %}
       <div>{% for t in l.topics %}<span class="chip">{{ t.emoji }} {{ t.title }}</span>{% endfor %}</div>
       <div style="margin-top:6px">{% for a in l.acts %}<span class="chip yellow" title="{{ a.desc }}">{{ loop.index }}. {{ a.emoji }} {{ a.name }}</span>{% endfor %}</div>
+      {% endif %}
       <p class="muted" style="margin:8px 0 0;font-size:.9rem">{{ l.n_words }} palabras · {{ 'Para: ' + l.course if l.course else 'Para todos los cursos' }}</p>
     </div>
     <div class="foot">

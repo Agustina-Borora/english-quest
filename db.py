@@ -60,15 +60,29 @@ SCHEMA = [
         description VARCHAR(255) NOT NULL DEFAULT '',
         scene VARCHAR(20) NOT NULL DEFAULT 'house',
         activities VARCHAR(120) NOT NULL DEFAULT 'explore,read,write,quiz',
+        by_topic TINYINT(1) NOT NULL DEFAULT 0,
         course VARCHAR(30) NOT NULL DEFAULT '',
         published TINYINT(1) NOT NULL DEFAULT 1,
         position INT NOT NULL DEFAULT 0,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (teacher_id) REFERENCES teachers(id) ON DELETE CASCADE
     )""",
+    """CREATE TABLE IF NOT EXISTS custom_scenes (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        teacher_id INT NOT NULL,
+        name VARCHAR(60) NOT NULL,
+        image MEDIUMBLOB NOT NULL,
+        mime VARCHAR(30) NOT NULL DEFAULT 'image/jpeg',
+        slots TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (teacher_id) REFERENCES teachers(id) ON DELETE CASCADE
+    )""",
     """CREATE TABLE IF NOT EXISTS lesson_topics (
         lesson_id INT NOT NULL,
         topic_id INT NOT NULL,
+        position INT NOT NULL DEFAULT 0,
+        scene VARCHAR(20) NOT NULL DEFAULT '',
+        activities VARCHAR(120) NOT NULL DEFAULT '',
         PRIMARY KEY (lesson_id, topic_id),
         FOREIGN KEY (lesson_id) REFERENCES lessons(id) ON DELETE CASCADE,
         FOREIGN KEY (topic_id) REFERENCES topics(id) ON DELETE CASCADE
@@ -144,7 +158,15 @@ SCHEMA = [
     )""",
 ]
 
-TABLE_OPTIONS = " ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+MIGRATIONS = [
+    ("quick_games", "course", "VARCHAR(120) NOT NULL DEFAULT '' AFTER time_limit"),
+    ("lessons", "by_topic", "TINYINT(1) NOT NULL DEFAULT 0 AFTER activities"),
+    ("lesson_topics", "position", "INT NOT NULL DEFAULT 0"),
+    ("lesson_topics", "scene", "VARCHAR(20) NOT NULL DEFAULT ''"),
+    ("lesson_topics", "activities", "VARCHAR(120) NOT NULL DEFAULT ''"),
+]
+
+TABLE_OPTIONS =" ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
 
 
 def get_conn(with_db=True):
@@ -213,11 +235,12 @@ def init_db():
         with conn.cursor() as cur:
             for table_sql in SCHEMA:
                 cur.execute(table_sql + TABLE_OPTIONS)
-            # Bases creadas antes de que los juegos tuvieran curso: agregar la columna
-            cur.execute("SELECT COUNT(*) n FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=%s "
-                        "AND TABLE_NAME='quick_games' AND COLUMN_NAME='course'", (config.DB_NAME,))
-            if not cur.fetchone()["n"]:
-                cur.execute("ALTER TABLE quick_games ADD COLUMN course VARCHAR(120) NOT NULL DEFAULT '' AFTER time_limit")
+            # Bases creadas con una versión anterior: agregar las columnas nuevas
+            for table, column, definition in MIGRATIONS:
+                cur.execute("SELECT COUNT(*) n FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=%s "
+                            "AND TABLE_NAME=%s AND COLUMN_NAME=%s", (config.DB_NAME, table, column))
+                if not cur.fetchone()["n"]:
+                    cur.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
     finally:
         conn.close()
 

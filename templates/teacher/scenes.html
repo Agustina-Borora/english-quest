@@ -1,0 +1,42 @@
+{% extends "teacher/layout.html" %}
+{% block title %}Escenarios · Profe{% endblock %}
+{% block main %}
+<div class="page-head">
+  <div><h1>🖼️ Escenarios</h1><p>El lugar donde transcurre cada lección. Además de los dibujados, podés crear los tuyos con <b>imágenes de tu compu</b> (una foto del aula, un dibujo, un paisaje…) y marcar dónde aparece cada palabra.</p></div>
+  <div class="actions">
+    <a class="btn light" href="{{ url_for('teacher.lessons') }}">⬅ Lecciones</a>
+    <a class="btn" href="{{ url_for('teacher.scene_edit') }}">➕ Nuevo escenario</a>
+  </div>
+</div>
+
+<h2>⭐ Mis escenarios</h2>
+<div class="grid3" style="margin-bottom:26px">
+  {% for c in custom %}
+  <div class="tile">
+    <div class="thumb" data-scene="{{ c.key }}"><span class="label">{{ c.name }}</span></div>
+    <div class="body">
+      <p class="muted" style="margin:0">{{ c.n_slots ~ ' lugares marcados para las palabras' if c.n_slots else 'Las palabras aparecen en lugares automáticos' }}</p>
+      <p class="muted" style="margin:4px 0 0">{{ 'Lo usan ' ~ c.used ~ ' lección(es)' if c.used else 'Todavía no lo usa ninguna lección' }}</p>
+    </div>
+    <div class="foot">
+      <a class="btn small purple" href="{{ url_for('teacher.scene_edit', scene_id=c.id) }}">✏️ Editar</a>
+      <form method="post" action="{{ url_for('teacher.scene_delete', scene_id=c.id) }}" onsubmit="return confirm('¿Eliminar este escenario?{{ ' Las lecciones que lo usan vuelven al escenario Casa.' if c.used }}')"><button class="btn small red">🗑</button></form>
+    </div>
+  </div>
+  {% endfor %}
+  <a class="tile add" href="{{ url_for('teacher.scene_edit') }}"><span class="big">➕</span>Crear un escenario con una imagen</a>
+</div>
+
+<h2>🎨 Escenarios dibujados <small class="muted" style="font-weight:400">· vienen con el juego</small></h2>
+<div class="grid3">
+  {% for key, sc in builtin.items() %}
+  <div class="tile">
+    <div class="thumb" data-scene="{{ key }}"><span class="label">{{ sc.es }} · {{ sc.name }}</span></div>
+    <div class="body"><p class="muted" style="margin:0">{{ 'Lo usan ' ~ used[key] ~ ' lección(es)' if used.get(key) else 'Ninguna lección lo usa' }}</p></div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}
+{% block scripts %}
+<script>$$(".thumb[data-scene]").forEach(t => t.insertAdjacentHTML("afterbegin", sceneSVG(t.dataset.scene)));</script>
+{% endblock %}
