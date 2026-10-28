@@ -261,6 +261,23 @@ def word_add(topic_id):
     return redirect(url_for("teacher.topic_edit", topic_id=topic_id) + "#palabras")
 
 
+@bp.route("/temas/<int:topic_id>/palabras/<int:word_id>/editar", methods=["POST"])
+@teacher_required
+def word_edit(topic_id, word_id):
+    """Corregir una palabra ya cargada (si nos equivocamos al escribirla)."""
+    own_topic(topic_id)
+    word = " ".join(request.form.get("word", "").strip().lower().split())[:40]
+    translation = request.form.get("translation", "").strip()[:60]
+    if not word or not translation:
+        flash("La palabra en inglés y la traducción no pueden quedar vacías.", "error")
+    else:
+        db.execute("UPDATE words SET word=%s, translation=%s, emoji=%s, sentence=%s WHERE id=%s AND topic_id=%s",
+                   (word, translation, request.form.get("emoji", "").strip()[:16] or "⭐",
+                    request.form.get("sentence", "").strip()[:200], word_id, topic_id))
+        flash(f"Se corrigió «{word}» ✔", "ok")
+    return redirect(url_for("teacher.topic_edit", topic_id=topic_id) + "#palabras")
+
+
 @bp.route("/temas/<int:topic_id>/palabras/<int:word_id>/borrar", methods=["POST"])
 @teacher_required
 def word_delete(topic_id, word_id):

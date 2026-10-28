@@ -44,12 +44,32 @@
       <table class="t">
         <tr><th></th><th>Inglés</th><th>Español</th><th>Oración</th><th></th></tr>
         {% for w in words %}
-        <tr>
+        <tr id="w-{{ w.id }}">
           <td style="font-size:2rem;text-align:center;width:60px">{{ w.emoji }}</td>
           <td><b style="font-size:1.1rem">{{ w.word }}</b> <button type="button" class="btn small light" onclick='speak({{ w.word|tojson }})'>🔊</button></td>
           <td>{{ w.translation }}</td>
           <td class="muted">{{ w.sentence }}</td>
-          <td><form method="post" action="{{ url_for('teacher.word_delete', topic_id=topic.id, word_id=w.id) }}"><button class="btn small red" title="Borrar">🗑</button></form></td>
+          <td style="white-space:nowrap">
+            <button type="button" class="btn small purple" title="Corregir" onclick="editWord({{ w.id }}, true)">✏️</button>
+            <form method="post" action="{{ url_for('teacher.word_delete', topic_id=topic.id, word_id=w.id) }}" style="display:inline" onsubmit='return confirm({{ ("¿Borrar «" ~ w.word ~ "»?")|tojson }})'><button class="btn small red" title="Borrar">🗑</button></form>
+          </td>
+        </tr>
+        <tr id="e-{{ w.id }}" class="word-edit" hidden>
+          <td colspan="5">
+            <form method="post" action="{{ url_for('teacher.word_edit', topic_id=topic.id, word_id=w.id) }}">
+              <div class="form-row">
+                <div><label class="lbl">Dibujo (emoji)</label><input class="field" name="emoji" value="{{ w.emoji }}" maxlength="8"></div>
+                <div><label class="lbl">Inglés</label><input class="field" name="word" value="{{ w.word }}" required></div>
+                <div><label class="lbl">Español</label><input class="field" name="translation" value="{{ w.translation }}" required></div>
+              </div>
+              <label class="lbl">Oración de ejemplo (opcional)</label>
+              <input class="field" name="sentence" value="{{ w.sentence }}" placeholder="ej: My cat is orange.">
+              <div class="actions" style="margin-top:10px">
+                <button class="btn small green">💾 Guardar cambios</button>
+                <button type="button" class="btn small light" onclick="editWord({{ w.id }}, false)">Cancelar</button>
+              </div>
+            </form>
+          </td>
         </tr>
         {% endfor %}
       </table>
@@ -60,4 +80,15 @@
     {% endif %}
   </div>
 </div>
+{% endblock %}
+{% block scripts %}
+<script>
+// ✏️ muestra los campos para corregir una palabra en su misma fila; Cancelar la deja como estaba
+function editWord(id, on) {
+  $$(".word-edit").forEach(r => { r.hidden = true; $("#w-" + r.id.slice(2)).hidden = false; $("form", r).reset(); });
+  $("#w-" + id).hidden = on;
+  $("#e-" + id).hidden = !on;
+  if (on) $("#e-" + id + " input[name=word]").focus();
+}
+</script>
 {% endblock %}
