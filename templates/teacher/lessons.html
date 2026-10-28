@@ -38,8 +38,9 @@
       <form method="post" action="{{ url_for('teacher.lesson_delete', lesson_id=l.id) }}" onsubmit="return confirm('¿Eliminar esta lección? Se borra también el progreso de los alumnos en ella.')"><button class="btn small red">🗑</button></form>
     </div>
   </div>
+  {% else %}
+  <div class="empty" style="grid-column:1/-1"><span class="big">🗺️</span>Todavía no hay lecciones. Tocá <b>➕ Nueva lección</b> arriba.</div>
   {% endfor %}
-  <a class="tile add" href="{{ url_for('teacher.lesson_edit') }}"><span class="big">➕</span>Nueva lección</a>
 </div>
 {% endblock %}
 {% block scripts %}

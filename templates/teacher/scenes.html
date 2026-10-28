@@ -23,8 +23,9 @@
       <form method="post" action="{{ url_for('teacher.scene_delete', scene_id=c.id) }}" onsubmit="return confirm('¿Eliminar este escenario?{{ ' Las lecciones que lo usan vuelven al escenario Casa.' if c.used }}')"><button class="btn small red">🗑</button></form>
     </div>
   </div>
+  {% else %}
+  <div class="empty" style="grid-column:1/-1"><span class="big">🖼️</span>Todavía no creaste escenarios. Tocá <b>➕ Nuevo escenario</b> arriba para hacer uno con una imagen de tu compu.</div>
   {% endfor %}
-  <a class="tile add" href="{{ url_for('teacher.scene_edit') }}"><span class="big">➕</span>Crear un escenario con una imagen</a>
 </div>
 
 <h2>🎨 Escenarios dibujados <small class="muted" style="font-weight:400">· vienen con el juego</small></h2>
