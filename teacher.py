@@ -460,7 +460,21 @@ def scene_edit(scene_id=None):
         flash("¡Escenario guardado! 🖼️ Ya lo podés elegir en tus lecciones.", "ok")
         return redirect(url_for("teacher.scenes"))
     slots = parse_slots(scene["slots"]) if scene else []
-    return render_template("teacher/scene_edit.html", scene=scene, slots=slots, page="scenes")
+    # Para ver qué palabra cae en cada número: los temas con sus palabras, en el orden en que aparecen
+    topics = db.query("SELECT id, title, emoji FROM topics WHERE teacher_id=%s ORDER BY id", (tid,))
+    words = db.query("SELECT w.topic_id, w.word, w.translation FROM words w JOIN topics t ON t.id=w.topic_id "
+                     "WHERE t.teacher_id=%s ORDER BY w.position, w.id", (tid,))
+    for t in topics:
+        t["words"] = [{"word": w["word"], "translation": w["translation"]} for w in words if w["topic_id"] == t["id"]]
+    # Arranca mostrando el tema que ya usa este escenario (en un tema o en toda la lección)
+    used = None
+    if scene:
+        key = f"c{scene['id']}"
+        used = db.query_one("SELECT lt.topic_id FROM lesson_topics lt JOIN lessons l ON l.id=lt.lesson_id "
+                            "WHERE l.teacher_id=%s AND (lt.scene=%s OR (lt.scene='' AND l.scene=%s)) "
+                            "ORDER BY lt.scene=%s DESC, lt.position LIMIT 1", (tid, key, key, key))
+    return render_template("teacher/scene_edit.html", scene=scene, slots=slots, topics=topics,
+                           topic_id=used["topic_id"] if used else None, page="scenes")
 
 
 @bp.route("/escenarios/<int:scene_id>/borrar", methods=["POST"])

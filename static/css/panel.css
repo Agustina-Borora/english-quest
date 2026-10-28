@@ -209,8 +209,4 @@ details.mistakes .good { color: #0d7a42; font-weight: 600; }
 .topic-plan .tp-head select { width: auto; max-width: 100%; }
 .topic-plan .tp-scene { width: 74px; aspect-ratio: 16 / 10; border-radius: 10px; overflow: hidden; flex: none; }
 .topic-plan .tp-scene svg, .topic-plan .tp-scene img { width: 100%; height: 100%; display: block; object-fit: cover; }
-.scene-editor .pin-label { position: absolute; transform: translate(-50%, 28px); background: #fff; color: var(--ink); border-radius: 99px; padding: 3px 10px; font-weight: 700; font-size: .9rem; white-space: nowrap; box-shadow: 0 2px 6px rgba(0,0,0,.3); pointer-events: none; }
-.slot-list { list-style: none; padding: 0; margin: 12px 0 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 8px; }
-.slot-list li { display: flex; align-items: center; gap: 8px; }
-.slot-list .n { width: 30px; height: 30px; border-radius: 50%; background: var(--purple); color: #fff; font-weight: 700; display: flex; align-items: center; justify-content: center; flex: none; }
-.slot-list .field { margin: 0; }
+.scene-editor .pin-label { position: absolute; transform: translate(-50%, 28px); background: #fff; color: var(--ink); border-radius: 99px; padding: 2px 8px; font-weight: 600; font-size: .78rem; white-space: nowrap; box-shadow: 0 2px 6px rgba(0,0,0,.3); pointer-events: none; }
