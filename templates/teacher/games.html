@@ -36,9 +36,8 @@
       <form method="post" action="{{ url_for('teacher.game_delete', game_id=g.id) }}" onsubmit="return confirm('¿Eliminar este juego y sus resultados?')"><button class="btn small red">🗑</button></form>
     </div>
   </div>
+  {% else %}
+  <div class="empty" style="grid-column:1/-1"><span class="big">⚡</span>{{ 'No hay juegos para ' ~ course ~ '.' if course else 'Todavía no hay juegos.' }} Tocá <b>➕ Crear juego</b> arriba.</div>
   {% endfor %}
-  <form method="post" action="{{ url_for('teacher.game_new') }}" style="display:contents">
-    <button class="tile add"><span class="big">➕</span>Crear juego</button>
-  </form>
 </div>
 {% endblock %}
